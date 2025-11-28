@@ -16,24 +16,22 @@ limitations under the License.
 
 package skip
 
-import "github.com/Workiva/go-datastructures/common"
-
 const iteratorExhausted = -2
 
-// iterator represents an object that can be iterated.  It will
-// return false on Next and nil on Value if there are no further
+// iterator represents an object that can be iterated. It will
+// return false on Next and zero value on Value if there are no further
 // values to be iterated.
-type iterator struct {
+type iterator[T Comparable[T]] struct {
 	first bool
-	n     *node
+	n     *node[T]
 }
 
 // Next returns a bool indicating if there are any further values
 // in this iterator.
-func (iter *iterator) Next() bool {
+func (iter *iterator[T]) Next() bool {
 	if iter.first {
 		iter.first = false
-		return iter.n != nil
+		return iter.n != nil && iter.n.hasEntry
 	}
 
 	if iter.n == nil {
@@ -41,14 +39,15 @@ func (iter *iterator) Next() bool {
 	}
 
 	iter.n = iter.n.forward[0]
-	return iter.n != nil
+	return iter.n != nil && iter.n.hasEntry
 }
 
-// Value returns a Comparator representing the iterator's present
-// position in the query.  Returns nil if no values remain to iterate.
-func (iter *iterator) Value() common.Comparator {
-	if iter.n == nil {
-		return nil
+// Value returns a value representing the iterator's present
+// position in the query. Returns zero value if no values remain to iterate.
+func (iter *iterator[T]) Value() T {
+	if iter.n == nil || !iter.n.hasEntry {
+		var zero T
+		return zero
 	}
 
 	return iter.n.entry
@@ -56,17 +55,17 @@ func (iter *iterator) Value() common.Comparator {
 
 // exhaust is a helper method to exhaust this iterator and return
 // all remaining entries.
-func (iter *iterator) exhaust() common.Comparators {
-	entries := make(common.Comparators, 0, 10)
-	for i := iter; i.Next(); {
-		entries = append(entries, i.Value())
+func (iter *iterator[T]) exhaust() []T {
+	entries := make([]T, 0, 10)
+	for iter.Next() {
+		entries = append(entries, iter.Value())
 	}
 
 	return entries
 }
 
 // nilIterator returns an iterator that will always return false
-// for Next and nil for Value.
-func nilIterator() *iterator {
-	return &iterator{}
+// for Next and zero value for Value.
+func nilIterator[T Comparable[T]]() *iterator[T] {
+	return &iterator[T]{}
 }

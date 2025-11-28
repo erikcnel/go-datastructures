@@ -16,12 +16,12 @@ limitations under the License.
 
 /*
 Package skiplist implements an n-dimensional rangetree based on a skip
-list.  This should be faster than a straight slice implementation as
+list. This should be faster than a straight slice implementation as
 memcopy is avoided.
 
 Time complexities revolve around the ability to quickly find items
-in the n-dimensional skiplist.  That time can be defined by the
-number of items in any dimension.  Let N1, N2,... Nn define the
+in the n-dimensional skiplist. That time can be defined by the
+number of items in any dimension. Let N1, N2,... Nn define the
 number of dimensions.
 
 Performance characteristics:
@@ -33,31 +33,27 @@ Delete: O(log N1 + log N2 + ...log Nn) = O(log N1*N2*...Nn)
 package skiplist
 
 import (
-	"github.com/Workiva/go-datastructures/common"
 	"github.com/Workiva/go-datastructures/rangetree"
 	"github.com/Workiva/go-datastructures/slice/skip"
 )
 
-// keyed is required as in the rangetree code we often want to compare
-// two different types of bundles and this allows us to do so without
-// checking for each one.
-type keyed interface {
+// skipBundle is the common interface for all entries stored in the skip list.
+// All entries are compared by their key.
+type skipBundle interface {
 	key() uint64
+	skip.Comparable[skipBundle]
 }
 
+// skipEntry is used for lookups by value.
 type skipEntry uint64
 
-// Compare is required by the Comparator interface.
-func (se skipEntry) Compare(other common.Comparator) int {
-	otherSe := other.(skipEntry)
-	if se == otherSe {
+func (se skipEntry) Compare(other skipBundle) int {
+	if uint64(se) == other.key() {
 		return 0
 	}
-
-	if se > otherSe {
+	if uint64(se) > other.key() {
 		return 1
 	}
-
 	return -1
 }
 
@@ -92,21 +88,18 @@ func needsDeletion(value, index, number int64) bool {
 // dimension and represents a wrapper around a skiplist.
 type dimensionalBundle struct {
 	id uint64
-	sl *skip.SkipList
+	sl *skip.SkipList[skipBundle]
 }
 
 // Compare returns a value indicating the relative relationship and the
 // provided bundle.
-func (db *dimensionalBundle) Compare(e common.Comparator) int {
-	keyed := e.(keyed)
-	if db.id == keyed.key() {
+func (db *dimensionalBundle) Compare(other skipBundle) int {
+	if db.id == other.key() {
 		return 0
 	}
-
-	if db.id > keyed.key() {
+	if db.id > other.key() {
 		return 1
 	}
-
 	return -1
 }
 
@@ -124,16 +117,13 @@ type lastBundle struct {
 
 // Compare returns a value indicating the relative relationship and the
 // provided bundle.
-func (lb *lastBundle) Compare(e common.Comparator) int {
-	keyed := e.(keyed)
-	if lb.id == keyed.key() {
+func (lb *lastBundle) Compare(other skipBundle) int {
+	if lb.id == other.key() {
 		return 0
 	}
-
-	if lb.id > keyed.key() {
+	if lb.id > other.key() {
 		return 1
 	}
-
 	return -1
 }
 
@@ -143,19 +133,18 @@ func (lb *lastBundle) key() uint64 {
 }
 
 type skipListRT struct {
-	top                *skip.SkipList
+	top                *skip.SkipList[skipBundle]
 	dimensions, number uint64
 }
 
 func (rt *skipListRT) init(dimensions uint64) {
 	rt.dimensions = dimensions
-	rt.top = skip.New(uint64(0))
+	rt.top = skip.New[skipBundle](uint64(0))
 }
 
 func (rt *skipListRT) add(entry rangetree.Entry) rangetree.Entry {
 	var (
 		value int64
-		e     common.Comparator
 		sl    = rt.top
 		db    *dimensionalBundle
 		lb    *lastBundle
@@ -163,10 +152,10 @@ func (rt *skipListRT) add(entry rangetree.Entry) rangetree.Entry {
 
 	for i := uint64(0); i < rt.dimensions; i++ {
 		value = entry.ValueAtDimension(i)
-		e = sl.Get(skipEntry(value))[0]
+		results, found := sl.Get(skipEntry(value))
 		if isLastDimension(i, rt.dimensions) {
-			if e != nil { // this is an overwrite
-				lb = e.(*lastBundle)
+			if found[0] { // this is an overwrite
+				lb = results[0].(*lastBundle)
 				oldEntry := lb.entry
 				lb.entry = entry
 				return oldEntry
@@ -179,11 +168,11 @@ func (rt *skipListRT) add(entry rangetree.Entry) rangetree.Entry {
 			return nil
 		}
 
-		if e == nil { // we need the intermediate dimension
-			db = &dimensionalBundle{id: uint64(value), sl: skip.New(uint64(0))}
+		if !found[0] { // we need the intermediate dimension
+			db = &dimensionalBundle{id: uint64(value), sl: skip.New[skipBundle](uint64(0))}
 			sl.Insert(db)
 		} else {
-			db = e.(*dimensionalBundle)
+			db = results[0].(*dimensionalBundle)
 		}
 
 		sl = db.sl
@@ -192,9 +181,9 @@ func (rt *skipListRT) add(entry rangetree.Entry) rangetree.Entry {
 	panic(`Ran out of dimensions before for loop completed.`)
 }
 
-// Add will add the provided entries to the tree.  This method
+// Add will add the provided entries to the tree. This method
 // returns a list of entries that were overwritten in the order
-// in which entries were received.  If an entry doesn't overwrite
+// in which entries were received. If an entry doesn't overwrite
 // anything, a nil will be returned for that entry in the returned
 // slice.
 func (rt *skipListRT) Add(entries ...rangetree.Entry) rangetree.Entries {
@@ -209,21 +198,20 @@ func (rt *skipListRT) Add(entries ...rangetree.Entry) rangetree.Entries {
 func (rt *skipListRT) get(entry rangetree.Entry) rangetree.Entry {
 	var (
 		sl    = rt.top
-		e     common.Comparator
 		value uint64
 	)
 	for i := uint64(0); i < rt.dimensions; i++ {
 		value = uint64(entry.ValueAtDimension(i))
-		e = sl.Get(skipEntry(value))[0]
-		if e == nil {
+		results, found := sl.Get(skipEntry(value))
+		if !found[0] {
 			return nil
 		}
 
 		if isLastDimension(i, rt.dimensions) {
-			return e.(*lastBundle).entry
+			return results[0].(*lastBundle).entry
 		}
 
-		sl = e.(*dimensionalBundle).sl
+		sl = results[0].(*dimensionalBundle).sl
 	}
 
 	panic(`Reached past for loop without finding last dimension.`)
@@ -246,28 +234,29 @@ func (rt *skipListRT) Len() uint64 {
 	return rt.number
 }
 
-// deleteRecursive is used by the delete logic.  The recursion depth
+// deleteRecursive is used by the delete logic. The recursion depth
 // only goes as far as the number of dimensions, so this shouldn't be an
 // issue.
-func (rt *skipListRT) deleteRecursive(sl *skip.SkipList, dimension uint64,
+func (rt *skipListRT) deleteRecursive(sl *skip.SkipList[skipBundle], dimension uint64,
 	entry rangetree.Entry) rangetree.Entry {
 
 	value := entry.ValueAtDimension(dimension)
 	if isLastDimension(dimension, rt.dimensions) {
-		entries := sl.Delete(skipEntry(value))
-		if entries[0] == nil {
+		deleted, wasDeleted := sl.Delete(skipEntry(value))
+		if !wasDeleted[0] {
 			return nil
 		}
 
 		rt.number--
-		return entries[0].(*lastBundle).entry
+		return deleted[0].(*lastBundle).entry
 	}
 
-	db, ok := sl.Get(skipEntry(value))[0].(*dimensionalBundle)
-	if !ok { // value was not found
+	results, found := sl.Get(skipEntry(value))
+	if !found[0] { // value was not found
 		return nil
 	}
 
+	db := results[0].(*dimensionalBundle)
 	result := rt.deleteRecursive(db.sl, dimension+1, entry)
 	if result == nil {
 		return nil
@@ -286,7 +275,7 @@ func (rt *skipListRT) delete(entry rangetree.Entry) rangetree.Entry {
 
 // Delete will remove the provided entries from the tree.
 // Any entries that were deleted will be returned in the order in
-// which they were deleted.  If an entry does not exist to be deleted,
+// which they were deleted. If an entry does not exist to be deleted,
 // a nil is returned for that entry's index in the provided cells.
 func (rt *skipListRT) Delete(entries ...rangetree.Entry) rangetree.Entries {
 	deletedEntries := make(rangetree.Entries, len(entries))
@@ -297,16 +286,14 @@ func (rt *skipListRT) Delete(entries ...rangetree.Entry) rangetree.Entries {
 	return deletedEntries
 }
 
-func (rt *skipListRT) apply(sl *skip.SkipList, dimension uint64,
+func (rt *skipListRT) apply(sl *skip.SkipList[skipBundle], dimension uint64,
 	interval rangetree.Interval, fn func(rangetree.Entry) bool) bool {
 
 	lowValue, highValue := interval.LowAtDimension(dimension), interval.HighAtDimension(dimension)
 
-	var e common.Comparator
-
 	for iter := sl.Iter(skipEntry(lowValue)); iter.Next(); {
-		e = iter.Value()
-		if int64(e.(keyed).key()) >= highValue {
+		e := iter.Value()
+		if int64(e.key()) >= highValue {
 			break
 		}
 
@@ -326,8 +313,8 @@ func (rt *skipListRT) apply(sl *skip.SkipList, dimension uint64,
 }
 
 // Apply will call the provided function with each entry that exists
-// within the provided range, in order.  Return false at any time to
-// cancel iteration.  Altering the entry in such a way that its location
+// within the provided range, in order. Return false at any time to
+// cancel iteration. Altering the entry in such a way that its location
 // changes will result in undefined behavior.
 func (rt *skipListRT) Apply(interval rangetree.Interval, fn func(rangetree.Entry) bool) {
 	rt.apply(rt.top, 0, interval, fn)
@@ -345,7 +332,7 @@ func (rt *skipListRT) Query(interval rangetree.Interval) rangetree.Entries {
 	return entries
 }
 
-func (rt *skipListRT) flatten(sl *skip.SkipList, dimension uint64, entries *rangetree.Entries) {
+func (rt *skipListRT) flatten(sl *skip.SkipList[skipBundle], dimension uint64, entries *rangetree.Entries) {
 	lastDimension := isLastDimension(dimension, rt.dimensions)
 	for iter := sl.Iter(skipEntry(0)); iter.Next(); {
 		if lastDimension {
@@ -356,33 +343,32 @@ func (rt *skipListRT) flatten(sl *skip.SkipList, dimension uint64, entries *rang
 	}
 }
 
-func (rt *skipListRT) insert(sl *skip.SkipList, dimension, insertDimension uint64,
+func (rt *skipListRT) insert(sl *skip.SkipList[skipBundle], dimension, insertDimension uint64,
 	index, number int64, deleted, affected *rangetree.Entries) {
 
-	var e common.Comparator
 	lastDimension := isLastDimension(dimension, rt.dimensions)
 	affectedDimension := dimension == insertDimension
-	var iter skip.Iterator
+	var iter skip.Iterator[skipBundle]
 	if dimension == insertDimension {
 		iter = sl.Iter(skipEntry(index))
 	} else {
 		iter = sl.Iter(skipEntry(0))
 	}
 
-	var toDelete common.Comparators
+	var toDelete []skipBundle
 	if number < 0 {
-		toDelete = make(common.Comparators, 0, 100)
+		toDelete = make([]skipBundle, 0, 100)
 	}
 
 	for iter.Next() {
-		e = iter.Value()
+		e := iter.Value()
 		if !affectedDimension {
 			rt.insert(e.(*dimensionalBundle).sl, dimension+1,
 				insertDimension, index, number, deleted, affected,
 			)
 			continue
 		}
-		if needsDeletion(int64(e.(keyed).key()), index, number) {
+		if needsDeletion(int64(e.key()), index, number) {
 			toDelete = append(toDelete, e)
 			continue
 		}
@@ -410,9 +396,9 @@ func (rt *skipListRT) insert(sl *skip.SkipList, dimension, insertDimension uint6
 }
 
 // InsertAtDimension will increment items at and above the given index
-// by the number provided.  Provide a negative number to to decrement.
-// Returned are two lists.  The first list is a list of entries that
-// were moved.  The second is a list entries that were deleted.  These
+// by the number provided. Provide a negative number to to decrement.
+// Returned are two lists. The first list is a list of entries that
+// were moved. The second is a list entries that were deleted. These
 // lists are exclusive.
 func (rt *skipListRT) InsertAtDimension(dimension uint64,
 	index, number int64) (rangetree.Entries, rangetree.Entries) {

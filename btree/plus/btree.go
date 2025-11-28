@@ -15,9 +15,9 @@ limitations under the License.
 */
 
 /*
-Package btree/plus implements the ubiquitous B+ tree.  As of this writing,
-the tree is not quite finished.  The delete-node merge functionality needs
-to be added.  There are also some performance improvements that can be
+Package btree/plus implements the ubiquitous B+ tree. As of this writing,
+the tree is not quite finished. The delete-node merge functionality needs
+to be added. There are also some performance improvements that can be
 made, with some possible concurrency mechanisms.
 
 This is a mutable b-tree so it is not threadsafe.
@@ -27,13 +27,25 @@ Space: O(n)
 Insert: O(log n)
 Search: O(log n)
 
+Example usage with generics:
+
+	type MyInt int
+
+	func (m MyInt) Compare(other MyInt) int {
+		return int(m - other)
+	}
+
+	tree := plus.New[MyInt](32)
+	tree.Insert(MyInt(5), MyInt(3), MyInt(7))
+	results, found := tree.Get(MyInt(5))
+
 BenchmarkIteration-8	   	10000	   		 	109347 ns/op
 BenchmarkInsert-8	 		3000000	       		608 ns/op
 BenchmarkGet-8	 			3000000	       		627 ns/op
 */
 package plus
 
-func keySearch(keys keys, key Key) int {
+func keySearch[K Comparable[K]](keys keySlice[K], key K) int {
 	low, high := 0, len(keys)-1
 	var mid int
 	for low <= high {
@@ -50,14 +62,15 @@ func keySearch(keys keys, key Key) int {
 	return low
 }
 
-type btree struct {
-	root             node
+// BTree is a generic B+ tree implementation.
+type BTree[K Comparable[K]] struct {
+	root             node[K]
 	nodeSize, number uint64
 }
 
-func (tree *btree) insert(key Key) {
+func (tree *BTree[K]) insert(key K) {
 	if tree.root == nil {
-		n := newLeafNode(tree.nodeSize)
+		n := newLeafNode[K](tree.nodeSize)
 		n.insert(tree, key)
 		tree.number = 1
 		return
@@ -73,10 +86,10 @@ func (tree *btree) insert(key Key) {
 	}
 }
 
-// Insert will insert the provided keys into the btree.  This is an
+// Insert will insert the provided keys into the btree. This is an
 // O(m*log n) operation where m is the number of keys to be inserted
 // and n is the number of items in the tree.
-func (tree *btree) Insert(keys ...Key) {
+func (tree *BTree[K]) Insert(keys ...K) {
 	for _, key := range keys {
 		tree.insert(key)
 	}
@@ -84,47 +97,64 @@ func (tree *btree) Insert(keys ...Key) {
 
 // Iter returns an iterator that can be used to traverse the b-tree
 // starting from the specified key or its successor.
-func (tree *btree) Iter(key Key) Iterator {
+func (tree *BTree[K]) Iter(key K) Iterator[K] {
 	if tree.root == nil {
-		return nilIterator()
+		return nilIterator[K]()
 	}
 
 	return tree.root.find(key)
 }
 
-func (tree *btree) get(key Key) Key {
+func (tree *BTree[K]) get(key K) (K, bool) {
 	iter := tree.root.find(key)
 	if !iter.Next() {
-		return nil
+		var zero K
+		return zero, false
 	}
 
 	if iter.Value().Compare(key) == 0 {
-		return iter.Value()
+		return iter.Value(), true
 	}
 
-	return nil
+	var zero K
+	return zero, false
 }
 
 // Get will retrieve any keys matching the provided keys in the tree.
-// Returns nil in any place of a key that couldn't be found.  Each lookup
-// is an O(log n) operation.
-func (tree *btree) Get(keys ...Key) Keys {
-	results := make(Keys, 0, len(keys))
-	for _, k := range keys {
-		results = append(results, tree.get(k))
+// Returns the found values and a parallel slice of bools indicating
+// if each key was found.
+func (tree *BTree[K]) Get(keys ...K) ([]K, []bool) {
+	results := make([]K, len(keys))
+	found := make([]bool, len(keys))
+	for i, k := range keys {
+		results[i], found[i] = tree.get(k)
 	}
 
-	return results
+	return results, found
 }
 
 // Len returns the number of items in this tree.
-func (tree *btree) Len() uint64 {
+func (tree *BTree[K]) Len() uint64 {
 	return tree.number
 }
 
-func newBTree(nodeSize uint64) *btree {
-	return &btree{
+// New creates a new B+ tree with the specified node size.
+// The node size determines how many keys each node can hold.
+func New[K Comparable[K]](nodeSize uint64) *BTree[K] {
+	return &BTree[K]{
 		nodeSize: nodeSize,
-		root:     newLeafNode(nodeSize),
+		root:     newLeafNode[K](nodeSize),
 	}
 }
+
+// Deprecated: Use New[T] instead.
+// btree is the old non-generic type kept for backward compatibility.
+type btree = BTree[Key]
+
+// Deprecated: Use New[T] instead.
+func newBTree(nodeSize uint64) *btree {
+	return New[Key](nodeSize)
+}
+
+// Deprecated type aliases for backward compatibility
+type keys = keySlice[Key]

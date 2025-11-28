@@ -18,17 +18,38 @@ package skip
 
 import "github.com/Workiva/go-datastructures/common"
 
-// Iterator defines an interface that allows a consumer to iterate
-// all results of a query.  All values will be visited in-order.
-type Iterator interface {
+// Comparable is a constraint for types that can be compared for ordering.
+// The Compare method should return:
+//   - negative value if receiver < other
+//   - zero if receiver == other
+//   - positive value if receiver > other
+type Comparable[T any] interface {
+	Compare(other T) int
+}
+
+// Iterator defines a generic interface that allows a consumer to iterate
+// all results of a query. All values will be visited in-order.
+type Iterator[T any] interface {
 	// Next returns a bool indicating if there is future value
 	// in the iterator and moves the iterator to that value.
 	Next() bool
-	// Value returns a Comparator representing the iterator's current
-	// position.  If there is no value, this returns nil.
-	Value() common.Comparator
-	// exhaust is a helper method that will iterate this iterator
-	// to completion and return a list of resulting Entries
-	// in order.
-	exhaust() common.Comparators
+	// Value returns a value representing the iterator's current
+	// position. Returns zero value if exhausted.
+	Value() T
+}
+
+// ComparatorWrapper wraps common.Comparator to implement Comparable[ComparatorWrapper].
+// This allows using the generic SkipList with the old common.Comparator interface.
+type ComparatorWrapper struct {
+	C common.Comparator
+}
+
+// Compare implements Comparable[ComparatorWrapper]
+func (cw ComparatorWrapper) Compare(other ComparatorWrapper) int {
+	return cw.C.Compare(other.C)
+}
+
+// NewComparatorSkipList creates a SkipList that works with common.Comparator.
+func NewComparatorSkipList(ifc any) *SkipList[ComparatorWrapper] {
+	return New[ComparatorWrapper](ifc)
 }

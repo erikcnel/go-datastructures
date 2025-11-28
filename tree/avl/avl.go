@@ -29,52 +29,65 @@ Get: O(log n)
 
 The immutable version of the AVL tree is obviously going to be slower than
 the mutable version but should offer higher read availability.
+
+Example usage with generics:
+
+	type MyInt int
+
+	func (m MyInt) Compare(other MyInt) int {
+		return int(m - other)
+	}
+
+	tree := avl.New[MyInt]()
+	tree, _ = tree.Insert(MyInt(5), MyInt(3), MyInt(7))
+	results := tree.Get(MyInt(5)) // returns [5]
 */
 package avl
 
 import "math"
 
-// Immutable represents an immutable AVL tree.  This is achieved
+// Immutable represents an immutable AVL tree. This is achieved
 // by branch copying.
-type Immutable struct {
-	root   *node
+type Immutable[T Comparable[T]] struct {
+	root   *node[T]
 	number uint64
-	dummy  node // helper for inserts.
+	dummy  node[T] // helper for inserts.
 }
 
 // copy returns a copy of this immutable tree with a copy
 // of the root and a new dummy helper for the insertion operation.
-func (immutable *Immutable) copy() *Immutable {
-	var root *node
+func (immutable *Immutable[T]) copy() *Immutable[T] {
+	var root *node[T]
 	if immutable.root != nil {
 		root = immutable.root.copy()
 	}
-	cp := &Immutable{
+	var zero T
+	cp := &Immutable[T]{
 		root:   root,
 		number: immutable.number,
-		dummy:  *newNode(nil),
+		dummy:  *newNode(zero, false),
 	}
 	return cp
 }
 
-func (immutable *Immutable) resetDummy() {
+func (immutable *Immutable[T]) resetDummy() {
 	immutable.dummy.children[0], immutable.dummy.children[1] = nil, nil
 	immutable.dummy.balance = 0
 }
 
-func (immutable *Immutable) init() {
-	immutable.dummy = node{
-		children: [2]*node{},
+func (immutable *Immutable[T]) init() {
+	immutable.dummy = node[T]{
+		children: [2]*node[T]{},
 	}
 }
 
-func (immutable *Immutable) get(entry Entry) Entry {
+func (immutable *Immutable[T]) get(entry T) (T, bool) {
 	n := immutable.root
 	var result int
 	for n != nil {
 		switch result = n.entry.Compare(entry); {
 		case result == 0:
-			return n.entry
+			return n.entry, true
 		case result > 0:
 			n = n.children[0]
 		case result < 0:
@@ -82,37 +95,38 @@ func (immutable *Immutable) get(entry Entry) Entry {
 		}
 	}
 
-	return nil
+	var zero T
+	return zero, false
 }
 
-// Get will get the provided Entries from the tree.  If no matching
-// Entry is found, a nil is returned in its place.
-func (immutable *Immutable) Get(entries ...Entry) Entries {
-	result := make(Entries, 0, len(entries))
-	for _, e := range entries {
-		result = append(result, immutable.get(e))
+// Get will get the provided entries from the tree. Returns the found entries
+// and a parallel slice of bools indicating if each entry was found.
+func (immutable *Immutable[T]) Get(entries ...T) ([]T, []bool) {
+	results := make([]T, len(entries))
+	found := make([]bool, len(entries))
+	for i, e := range entries {
+		results[i], found[i] = immutable.get(e)
 	}
-
-	return result
+	return results, found
 }
 
 // Len returns the number of items in this immutable.
-func (immutable *Immutable) Len() uint64 {
+func (immutable *Immutable[T]) Len() uint64 {
 	return immutable.number
 }
 
-func (immutable *Immutable) insert(entry Entry) Entry {
-	// TODO: check cache to see if a node has already been copied.
+func (immutable *Immutable[T]) insert(entry T) (T, bool) {
+	var zero T
 	if immutable.root == nil {
-		immutable.root = newNode(entry)
+		immutable.root = newNode(entry, true)
 		immutable.number++
-		return nil
+		return zero, false
 	}
 
 	immutable.resetDummy()
 	var (
 		dummy           = immutable.dummy
-		p, s, q         *node
+		p, s, q         *node[T]
 		dir, normalized int
 		helper          = &dummy
 	)
@@ -142,7 +156,7 @@ func (immutable *Immutable) insert(entry Entry) Entry {
 		} else { // equality
 			oldEntry := p.entry
 			p.entry = entry
-			return oldEntry
+			return oldEntry, true
 		}
 		if q == nil {
 			break
@@ -156,7 +170,7 @@ func (immutable *Immutable) insert(entry Entry) Entry {
 	}
 
 	immutable.number++
-	q = newNode(entry)
+	q = newNode(entry, true)
 	p.children[normalized] = q
 
 	immutable.root = dummy.children[1]
@@ -181,48 +195,46 @@ func (immutable *Immutable) insert(entry Entry) Entry {
 	} else {
 		helper.children[intFromBool(helper.children[1] == q)] = s
 	}
-	return nil
+	return zero, false
 }
 
 // Insert will add the provided entries into the tree and return the new
-// state.  Also returned is a list of Entries that were overwritten.  If
-// nothing was overwritten for an Entry, a nil is returned in its place.
-func (immutable *Immutable) Insert(entries ...Entry) (*Immutable, Entries) {
+// state. Also returned is a list of entries that were overwritten and
+// bools indicating if each was overwritten.
+func (immutable *Immutable[T]) Insert(entries ...T) (*Immutable[T], []T, []bool) {
 	if len(entries) == 0 {
-		return immutable, Entries{}
+		return immutable, nil, nil
 	}
 
-	overwritten := make(Entries, 0, len(entries))
+	overwritten := make([]T, len(entries))
+	wasOverwritten := make([]bool, len(entries))
 	cp := immutable.copy()
-	for _, e := range entries {
-		overwritten = append(overwritten, cp.insert(e))
+	for i, e := range entries {
+		overwritten[i], wasOverwritten[i] = cp.insert(e)
 	}
 
-	return cp, overwritten
+	return cp, overwritten, wasOverwritten
 }
 
-func (immutable *Immutable) delete(entry Entry) Entry {
-	// TODO: reuse cache and dirs, check cache to see if nodes
-	// really need to be copied.
-	if immutable.root == nil { // easy case, nothing to remove
-		return nil
+func (immutable *Immutable[T]) delete(entry T) (T, bool) {
+	var zero T
+	if immutable.root == nil {
+		return zero, false
 	}
 
 	var (
-		// we are going to make a list here representing our stack.
-		// This means we don't have to copy if a value wasn't found.
-		cache                      = make(nodes, 64)
-		it, p, q                   *node
+		cache                      = make(nodes[T], 64)
+		it, p, q                   *node[T]
 		top, done, dir, normalized int
 		dirs                       = make([]int, 64)
-		oldEntry                   Entry
+		oldEntry                   T
 	)
 
 	it = immutable.root
 
 	for {
 		if it == nil {
-			return nil
+			return zero, false
 		}
 
 		dir = it.entry.Compare(entry)
@@ -236,10 +248,10 @@ func (immutable *Immutable) delete(entry Entry) Entry {
 		it = it.children[normalized]
 	}
 	immutable.number--
-	oldEntry = it.entry // we need to return this
+	oldEntry = it.entry
 
 	// we need to make a branch copy now
-	for i := 0; i < top; i++ { // first item will be root
+	for i := 0; i < top; i++ {
 		p = cache[i]
 		if p.children[dirs[i]] != nil {
 			q = p.children[dirs[i]].copy()
@@ -249,17 +261,17 @@ func (immutable *Immutable) delete(entry Entry) Entry {
 			}
 		}
 	}
-	it = it.copy() // the node we found needs to be copied
+	it = it.copy()
 
 	oldTop := top
-	if it.children[0] == nil || it.children[1] == nil { // need to set children on parent, splicing out
+	if it.children[0] == nil || it.children[1] == nil {
 		dir = intFromBool(it.children[0] == nil)
 		if top != 0 {
 			cache[top-1].children[dirs[top-1]] = it.children[dir]
 		} else {
 			immutable.root = it.children[dir]
 		}
-	} else { // climb up and set heirs
+	} else {
 		heir := it.children[1]
 		dirs[top] = 1
 		cache[top] = it
@@ -283,7 +295,6 @@ func (immutable *Immutable) delete(entry Entry) Entry {
 
 	for top-1 >= 0 && done == 0 {
 		top--
-		// set bounded balance
 		if dirs[top] != 0 {
 			cache[top].balance--
 		} else {
@@ -293,7 +304,6 @@ func (immutable *Immutable) delete(entry Entry) Entry {
 		if math.Abs(float64(cache[top].balance)) == 1 {
 			break
 		} else if math.Abs(float64(cache[top].balance)) > 1 {
-			// any rotations done here
 			cache[top] = removeBalance(cache[top], dirs[top], &done)
 
 			if top != 0 {
@@ -302,30 +312,30 @@ func (immutable *Immutable) delete(entry Entry) Entry {
 				immutable.root = cache[0]
 			}
 		}
-
 	}
 
-	return oldEntry
+	return oldEntry, true
 }
 
 // Delete will remove the provided entries from this AVL tree and
-// return a new tree and any entries removed.  If an entry could not
-// be found, nil is returned in its place.
-func (immutable *Immutable) Delete(entries ...Entry) (*Immutable, Entries) {
+// return a new tree and any entries removed. The bool slice indicates
+// if each entry was found and deleted.
+func (immutable *Immutable[T]) Delete(entries ...T) (*Immutable[T], []T, []bool) {
 	if len(entries) == 0 {
-		return immutable, Entries{}
+		return immutable, nil, nil
 	}
 
-	deleted := make(Entries, 0, len(entries))
+	deleted := make([]T, len(entries))
+	wasDeleted := make([]bool, len(entries))
 	cp := immutable.copy()
-	for _, e := range entries {
-		deleted = append(deleted, cp.delete(e))
+	for i, e := range entries {
+		deleted[i], wasDeleted[i] = cp.delete(e)
 	}
 
-	return cp, deleted
+	return cp, deleted, wasDeleted
 }
 
-func insertBalance(root *node, dir int) *node {
+func insertBalance[T Comparable[T]](root *node[T], dir int) *node[T] {
 	n := root.children[dir]
 	var bal int8
 	if dir == 0 {
@@ -345,7 +355,7 @@ func insertBalance(root *node, dir int) *node {
 	return root
 }
 
-func removeBalance(root *node, dir int, done *int) *node {
+func removeBalance[T Comparable[T]](root *node[T], dir int, done *int) *node[T] {
 	n := root.children[takeOpposite(dir)].copy()
 	root.children[takeOpposite(dir)] = n
 	var bal int8
@@ -375,7 +385,6 @@ func intFromBool(value bool) int {
 	if value {
 		return 1
 	}
-
 	return 0
 }
 
@@ -383,7 +392,7 @@ func takeOpposite(value int) int {
 	return 1 - value
 }
 
-func adjustBalance(root *node, dir, bal int) {
+func adjustBalance[T Comparable[T]](root *node[T], dir, bal int) {
 	n := root.children[dir]
 	nn := n.children[takeOpposite(dir)]
 
@@ -399,7 +408,7 @@ func adjustBalance(root *node, dir, bal int) {
 	nn.balance = 0
 }
 
-func rotate(parent *node, dir int) *node {
+func rotate[T Comparable[T]](parent *node[T], dir int) *node[T] {
 	otherDir := takeOpposite(dir)
 
 	child := parent.children[otherDir]
@@ -409,31 +418,34 @@ func rotate(parent *node, dir int) *node {
 	return child
 }
 
-func doubleRotate(parent *node, dir int) *node {
+func doubleRotate[T Comparable[T]](parent *node[T], dir int) *node[T] {
 	otherDir := takeOpposite(dir)
 
 	parent.children[otherDir] = rotate(parent.children[otherDir], otherDir)
 	return rotate(parent, dir)
 }
 
-// normalizeComparison converts the value returned from Entry.Compare
+// normalizeComparison converts the value returned from Compare
 // into a direction, ie, left or right, 0 or 1.
 func normalizeComparison(i int) int {
 	if i < 0 {
 		return 1
 	}
-
 	if i > 0 {
 		return 0
 	}
-
 	return -1
 }
 
-// NewImmutable allocates, initializes, and returns a new immutable
-// AVL tree.
-func NewImmutable() *Immutable {
-	immutable := &Immutable{}
+// New allocates, initializes, and returns a new immutable AVL tree.
+func New[T Comparable[T]]() *Immutable[T] {
+	immutable := &Immutable[T]{}
 	immutable.init()
 	return immutable
+}
+
+// NewImmutable is kept for backward compatibility.
+// Deprecated: Use New[T]() instead.
+func NewImmutable() *Immutable[Entry] {
+	return New[Entry]()
 }

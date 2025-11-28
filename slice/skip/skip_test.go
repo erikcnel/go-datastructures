@@ -21,12 +21,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/Workiva/go-datastructures/common"
 )
 
-func generateMockEntries(num int) common.Comparators {
-	entries := make(common.Comparators, 0, num)
+func generateMockEntries(num int) []mockEntry {
+	entries := make([]mockEntry, 0, num)
 	for i := uint64(0); i < uint64(num); i++ {
 		entries = append(entries, newMockEntry(i))
 	}
@@ -34,8 +32,8 @@ func generateMockEntries(num int) common.Comparators {
 	return entries
 }
 
-func generateRandomMockEntries(num int) common.Comparators {
-	entries := make(common.Comparators, 0, num)
+func generateRandomMockEntries(num int) []mockEntry {
+	entries := make([]mockEntry, 0, num)
 	for range num {
 		entries = append(entries, newMockEntry(uint64(rand.Int())))
 	}
@@ -47,67 +45,114 @@ func TestInsertByPosition(t *testing.T) {
 	m1 := newMockEntry(5)
 	m2 := newMockEntry(6)
 	m3 := newMockEntry(2)
-	sl := New(uint8(0))
+	sl := New[mockEntry](uint8(0))
 	sl.InsertAtPosition(2, m1)
 	sl.InsertAtPosition(0, m2)
 	sl.InsertAtPosition(0, m3)
 
-	assert.Equal(t, m3, sl.ByPosition(0))
-	assert.Equal(t, m2, sl.ByPosition(1))
-	assert.Equal(t, m1, sl.ByPosition(2))
-	assert.Nil(t, sl.ByPosition(3))
+	v, ok := sl.ByPosition(0)
+	assert.True(t, ok)
+	assert.Equal(t, m3, v)
+
+	v, ok = sl.ByPosition(1)
+	assert.True(t, ok)
+	assert.Equal(t, m2, v)
+
+	v, ok = sl.ByPosition(2)
+	assert.True(t, ok)
+	assert.Equal(t, m1, v)
+
+	_, ok = sl.ByPosition(3)
+	assert.False(t, ok)
 }
 
 func TestGetByPosition(t *testing.T) {
 	m1 := newMockEntry(5)
 	m2 := newMockEntry(6)
-	sl := New(uint8(0))
+	sl := New[mockEntry](uint8(0))
 	sl.Insert(m1, m2)
 
-	assert.Equal(t, m1, sl.ByPosition(0))
-	assert.Equal(t, m2, sl.ByPosition(1))
-	assert.Nil(t, sl.ByPosition(2))
+	v, ok := sl.ByPosition(0)
+	assert.True(t, ok)
+	assert.Equal(t, m1, v)
+
+	v, ok = sl.ByPosition(1)
+	assert.True(t, ok)
+	assert.Equal(t, m2, v)
+
+	_, ok = sl.ByPosition(2)
+	assert.False(t, ok)
 }
 
 func TestSplitAt(t *testing.T) {
 	m1 := newMockEntry(3)
 	m2 := newMockEntry(5)
 	m3 := newMockEntry(7)
-	sl := New(uint8(0))
+	sl := New[mockEntry](uint8(0))
 	sl.Insert(m1, m2, m3)
 
 	left, right := sl.SplitAt(1)
 	assert.Equal(t, uint64(2), left.Len())
 	assert.Equal(t, uint64(1), right.Len())
-	assert.Equal(t, common.Comparators{m1, m2, nil}, left.Get(m1, m2, m3))
-	assert.Equal(t, common.Comparators{nil, nil, m3}, right.Get(m1, m2, m3))
-	assert.Equal(t, m1, left.ByPosition(0))
-	assert.Equal(t, m2, left.ByPosition(1))
-	assert.Equal(t, m3, right.ByPosition(0))
-	assert.Equal(t, nil, left.ByPosition(2))
-	assert.Equal(t, nil, right.ByPosition(1))
+
+	results, found := left.Get(m1, m2, m3)
+	assert.True(t, found[0])
+	assert.True(t, found[1])
+	assert.False(t, found[2])
+	assert.Equal(t, m1, results[0])
+	assert.Equal(t, m2, results[1])
+
+	results, found = right.Get(m1, m2, m3)
+	assert.False(t, found[0])
+	assert.False(t, found[1])
+	assert.True(t, found[2])
+	assert.Equal(t, m3, results[2])
+
+	v, ok := left.ByPosition(0)
+	assert.True(t, ok)
+	assert.Equal(t, m1, v)
+
+	v, ok = left.ByPosition(1)
+	assert.True(t, ok)
+	assert.Equal(t, m2, v)
+
+	v, ok = right.ByPosition(0)
+	assert.True(t, ok)
+	assert.Equal(t, m3, v)
+
+	_, ok = left.ByPosition(2)
+	assert.False(t, ok)
+
+	_, ok = right.ByPosition(1)
+	assert.False(t, ok)
 }
 
 func TestSplitLargeSkipList(t *testing.T) {
 	entries := generateMockEntries(100)
 	leftEntries := entries[:50]
 	rightEntries := entries[50:]
-	sl := New(uint64(0))
+	sl := New[mockEntry](uint64(0))
 	sl.Insert(entries...)
 
 	left, right := sl.SplitAt(49)
 	assert.Equal(t, uint64(50), left.Len())
 	for _, le := range leftEntries {
-		result, index := left.GetWithPosition(le)
+		result, pos, ok := left.GetWithPosition(le)
+		assert.True(t, ok)
 		assert.Equal(t, le, result)
-		assert.Equal(t, le, left.ByPosition(index))
+		v, ok := left.ByPosition(pos)
+		assert.True(t, ok)
+		assert.Equal(t, le, v)
 	}
 
 	assert.Equal(t, uint64(50), right.Len())
 	for _, re := range rightEntries {
-		result, index := right.GetWithPosition(re)
+		result, pos, ok := right.GetWithPosition(re)
+		assert.True(t, ok)
 		assert.Equal(t, re, result)
-		assert.Equal(t, re, right.ByPosition(index))
+		v, ok := right.ByPosition(pos)
+		assert.True(t, ok)
+		assert.Equal(t, re, v)
 	}
 }
 
@@ -115,28 +160,34 @@ func TestSplitLargeSkipListOddNumber(t *testing.T) {
 	entries := generateMockEntries(99)
 	leftEntries := entries[:50]
 	rightEntries := entries[50:]
-	sl := New(uint64(0))
+	sl := New[mockEntry](uint64(0))
 	sl.Insert(entries...)
 
 	left, right := sl.SplitAt(49)
 	assert.Equal(t, uint64(50), left.Len())
 	for _, le := range leftEntries {
-		result, index := left.GetWithPosition(le)
+		result, pos, ok := left.GetWithPosition(le)
+		assert.True(t, ok)
 		assert.Equal(t, le, result)
-		assert.Equal(t, le, left.ByPosition(index))
+		v, ok := left.ByPosition(pos)
+		assert.True(t, ok)
+		assert.Equal(t, le, v)
 	}
 
 	assert.Equal(t, uint64(49), right.Len())
 	for _, re := range rightEntries {
-		result, index := right.GetWithPosition(re)
+		result, pos, ok := right.GetWithPosition(re)
+		assert.True(t, ok)
 		assert.Equal(t, re, result)
-		assert.Equal(t, re, right.ByPosition(index))
+		v, ok := right.ByPosition(pos)
+		assert.True(t, ok)
+		assert.Equal(t, re, v)
 	}
 }
 
 func TestSplitAtSkipListLength(t *testing.T) {
 	entries := generateMockEntries(5)
-	sl := New(uint64(0))
+	sl := New[mockEntry](uint64(0))
 	sl.Insert(entries...)
 
 	left, right := sl.SplitAt(4)
@@ -147,14 +198,16 @@ func TestSplitAtSkipListLength(t *testing.T) {
 func TestGetWithPosition(t *testing.T) {
 	m1 := newMockEntry(5)
 	m2 := newMockEntry(6)
-	sl := New(uint8(0))
+	sl := New[mockEntry](uint8(0))
 	sl.Insert(m1, m2)
 
-	e, pos := sl.GetWithPosition(m1)
+	e, pos, ok := sl.GetWithPosition(m1)
+	assert.True(t, ok)
 	assert.Equal(t, m1, e)
 	assert.Equal(t, uint64(0), pos)
 
-	e, pos = sl.GetWithPosition(m2)
+	e, pos, ok = sl.GetWithPosition(m2)
+	assert.True(t, ok)
 	assert.Equal(t, m2, e)
 	assert.Equal(t, uint64(1), pos)
 }
@@ -162,56 +215,77 @@ func TestGetWithPosition(t *testing.T) {
 func TestReplaceAtPosition(t *testing.T) {
 	m1 := newMockEntry(5)
 	m2 := newMockEntry(6)
-	sl := New(uint8(0))
+	sl := New[mockEntry](uint8(0))
 
 	sl.Insert(m1, m2)
 	m3 := newMockEntry(9)
 	sl.ReplaceAtPosition(0, m3)
-	assert.Equal(t, m3, sl.ByPosition(0))
-	assert.Equal(t, m2, sl.ByPosition(1))
+
+	v, ok := sl.ByPosition(0)
+	assert.True(t, ok)
+	assert.Equal(t, m3, v)
+
+	v, ok = sl.ByPosition(1)
+	assert.True(t, ok)
+	assert.Equal(t, m2, v)
 }
 
 func TestInsertRandomGetByPosition(t *testing.T) {
 	entries := generateRandomMockEntries(100)
-	sl := New(uint64(0))
+	sl := New[mockEntry](uint64(0))
 	sl.Insert(entries...)
 
 	for _, e := range entries {
-		_, pos := sl.GetWithPosition(e)
-		assert.Equal(t, e, sl.ByPosition(pos))
+		_, pos, ok := sl.GetWithPosition(e)
+		if ok {
+			v, ok := sl.ByPosition(pos)
+			assert.True(t, ok)
+			assert.Equal(t, e, v)
+		}
 	}
 }
 
 func TestGetManyByPosition(t *testing.T) {
 	entries := generateMockEntries(10)
-	sl := New(uint64(0))
+	sl := New[mockEntry](uint64(0))
 	sl.Insert(entries...)
 
 	for i, e := range entries {
-		assert.Equal(t, e, sl.ByPosition(uint64(i)))
+		v, ok := sl.ByPosition(uint64(i))
+		assert.True(t, ok)
+		assert.Equal(t, e, v)
 	}
 }
 
 func TestGetPositionAfterDelete(t *testing.T) {
 	m1 := newMockEntry(5)
 	m2 := newMockEntry(6)
-	sl := New(uint8(0))
+	sl := New[mockEntry](uint8(0))
 	sl.Insert(m1, m2)
 
 	sl.Delete(m1)
-	assert.Equal(t, m2, sl.ByPosition(0))
-	assert.Nil(t, sl.ByPosition(1))
+
+	v, ok := sl.ByPosition(0)
+	assert.True(t, ok)
+	assert.Equal(t, m2, v)
+
+	_, ok = sl.ByPosition(1)
+	assert.False(t, ok)
 
 	sl.Delete(m2)
-	assert.Nil(t, sl.ByPosition(0))
-	assert.Nil(t, sl.ByPosition(1))
+
+	_, ok = sl.ByPosition(0)
+	assert.False(t, ok)
+
+	_, ok = sl.ByPosition(1)
+	assert.False(t, ok)
 }
 
 func TestGetPositionBulkDelete(t *testing.T) {
 	es := generateMockEntries(20)
 	e1 := es[:10]
 	e2 := es[10:]
-	sl := New(uint64(0))
+	sl := New[mockEntry](uint64(0))
 	sl.Insert(e1...)
 	sl.Insert(e2...)
 
@@ -219,7 +293,9 @@ func TestGetPositionBulkDelete(t *testing.T) {
 		sl.Delete(e)
 	}
 	for i, e := range e2 {
-		assert.Equal(t, e, sl.ByPosition(uint64(i)))
+		v, ok := sl.ByPosition(uint64(i))
+		assert.True(t, ok)
+		assert.Equal(t, e, v)
 	}
 }
 
@@ -227,33 +303,43 @@ func TestSimpleInsert(t *testing.T) {
 	m1 := newMockEntry(5)
 	m2 := newMockEntry(6)
 
-	sl := New(uint8(0))
+	sl := New[mockEntry](uint8(0))
 
-	overwritten := sl.Insert(m1)
-	assert.Equal(t, common.Comparators{m1}, sl.Get(m1))
+	overwritten, wasOverwritten := sl.Insert(m1)
+	results, found := sl.Get(m1)
+	assert.True(t, found[0])
+	assert.Equal(t, m1, results[0])
 	assert.Equal(t, uint64(1), sl.Len())
-	assert.Equal(t, common.Comparators{nil}, overwritten)
-	assert.Equal(t, common.Comparators{nil}, sl.Get(mockEntry(1)))
+	assert.False(t, wasOverwritten[0])
 
-	overwritten = sl.Insert(m2)
-	assert.Equal(t, common.Comparators{m2}, sl.Get(m2))
-	assert.Equal(t, common.Comparators{nil}, sl.Get(mockEntry(7)))
+	results, found = sl.Get(mockEntry(1))
+	assert.False(t, found[0])
+
+	overwritten, wasOverwritten = sl.Insert(m2)
+	results, found = sl.Get(m2)
+	assert.True(t, found[0])
+	assert.Equal(t, m2, results[0])
+
+	results, found = sl.Get(mockEntry(7))
+	assert.False(t, found[0])
 	assert.Equal(t, uint64(2), sl.Len())
-	assert.Equal(t, common.Comparators{nil}, overwritten)
+	assert.False(t, wasOverwritten[0])
+	_ = overwritten
 }
 
 func TestSimpleOverwrite(t *testing.T) {
 	m1 := newMockEntry(5)
 	m2 := newMockEntry(5)
 
-	sl := New(uint8(0))
+	sl := New[mockEntry](uint8(0))
 
-	overwritten := sl.Insert(m1)
-	assert.Equal(t, common.Comparators{nil}, overwritten)
+	_, wasOverwritten := sl.Insert(m1)
+	assert.False(t, wasOverwritten[0])
 	assert.Equal(t, uint64(1), sl.Len())
 
-	overwritten = sl.Insert(m2)
-	assert.Equal(t, common.Comparators{m1}, overwritten)
+	overwritten, wasOverwritten := sl.Insert(m2)
+	assert.True(t, wasOverwritten[0])
+	assert.Equal(t, m1, overwritten[0])
 	assert.Equal(t, uint64(1), sl.Len())
 }
 
@@ -261,83 +347,98 @@ func TestInsertOutOfOrder(t *testing.T) {
 	m1 := newMockEntry(6)
 	m2 := newMockEntry(5)
 
-	sl := New(uint8(0))
+	sl := New[mockEntry](uint8(0))
 
-	overwritten := sl.Insert(m1, m2)
-	assert.Equal(t, common.Comparators{nil, nil}, overwritten)
+	_, wasOverwritten := sl.Insert(m1, m2)
+	assert.False(t, wasOverwritten[0])
+	assert.False(t, wasOverwritten[1])
 
-	assert.Equal(t, common.Comparators{m1, m2}, sl.Get(m1, m2))
+	results, found := sl.Get(m1, m2)
+	assert.True(t, found[0])
+	assert.True(t, found[1])
+	assert.Equal(t, m1, results[0])
+	assert.Equal(t, m2, results[1])
 }
 
 func TestSimpleDelete(t *testing.T) {
 	m1 := newMockEntry(5)
-	sl := New(uint8(0))
+	sl := New[mockEntry](uint8(0))
 	sl.Insert(m1)
 
-	deleted := sl.Delete(m1)
-	assert.Equal(t, common.Comparators{m1}, deleted)
+	deleted, wasDeleted := sl.Delete(m1)
+	assert.True(t, wasDeleted[0])
+	assert.Equal(t, m1, deleted[0])
 	assert.Equal(t, uint64(0), sl.Len())
-	assert.Equal(t, common.Comparators{nil}, sl.Get(m1))
 
-	deleted = sl.Delete(m1)
-	assert.Equal(t, common.Comparators{nil}, deleted)
+	_, found := sl.Get(m1)
+	assert.False(t, found[0])
+
+	deleted, wasDeleted = sl.Delete(m1)
+	assert.False(t, wasDeleted[0])
+	_ = deleted
 }
 
 func TestDeleteAll(t *testing.T) {
 	m1 := newMockEntry(5)
 	m2 := newMockEntry(6)
-	sl := New(uint8(0))
+	sl := New[mockEntry](uint8(0))
 	sl.Insert(m1, m2)
 
-	deleted := sl.Delete(m1, m2)
-	assert.Equal(t, common.Comparators{m1, m2}, deleted)
+	deleted, wasDeleted := sl.Delete(m1, m2)
+	assert.True(t, wasDeleted[0])
+	assert.True(t, wasDeleted[1])
+	assert.Equal(t, m1, deleted[0])
+	assert.Equal(t, m2, deleted[1])
 	assert.Equal(t, uint64(0), sl.Len())
-	assert.Equal(t, common.Comparators{nil, nil}, sl.Get(m1, m2))
+
+	_, found := sl.Get(m1, m2)
+	assert.False(t, found[0])
+	assert.False(t, found[1])
 }
 
 func TestIter(t *testing.T) {
-	sl := New(uint8(0))
+	sl := New[mockEntry](uint8(0))
 	m1 := newMockEntry(5)
 	m2 := newMockEntry(10)
 
 	sl.Insert(m1, m2)
 
-	iter := sl.Iter(mockEntry(0))
-	assert.Equal(t, common.Comparators{m1, m2}, iter.exhaust())
+	iter := sl.Iter(mockEntry(0)).(*iterator[mockEntry])
+	assert.Equal(t, []mockEntry{m1, m2}, iter.exhaust())
 
-	iter = sl.Iter(mockEntry(5))
-	assert.Equal(t, common.Comparators{m1, m2}, iter.exhaust())
+	iter = sl.Iter(mockEntry(5)).(*iterator[mockEntry])
+	assert.Equal(t, []mockEntry{m1, m2}, iter.exhaust())
 
-	iter = sl.Iter(mockEntry(6))
-	assert.Equal(t, common.Comparators{m2}, iter.exhaust())
+	iter = sl.Iter(mockEntry(6)).(*iterator[mockEntry])
+	assert.Equal(t, []mockEntry{m2}, iter.exhaust())
 
-	iter = sl.Iter(mockEntry(10))
-	assert.Equal(t, common.Comparators{m2}, iter.exhaust())
+	iter = sl.Iter(mockEntry(10)).(*iterator[mockEntry])
+	assert.Equal(t, []mockEntry{m2}, iter.exhaust())
 
-	iter = sl.Iter(mockEntry(11))
-	assert.Equal(t, common.Comparators{}, iter.exhaust())
+	iter = sl.Iter(mockEntry(11)).(*iterator[mockEntry])
+	assert.Equal(t, []mockEntry{}, iter.exhaust())
 }
 
 func TestIterAtPosition(t *testing.T) {
-	sl := New(uint8(0))
+	sl := New[mockEntry](uint8(0))
 	m1 := newMockEntry(5)
 	m2 := newMockEntry(10)
 
 	sl.Insert(m1, m2)
 
-	iter := sl.IterAtPosition(0)
-	assert.Equal(t, common.Comparators{m1, m2}, iter.exhaust())
+	iter := sl.IterAtPosition(0).(*iterator[mockEntry])
+	assert.Equal(t, []mockEntry{m1, m2}, iter.exhaust())
 
-	iter = sl.IterAtPosition(1)
-	assert.Equal(t, common.Comparators{m2}, iter.exhaust())
+	iter = sl.IterAtPosition(1).(*iterator[mockEntry])
+	assert.Equal(t, []mockEntry{m2}, iter.exhaust())
 
-	iter = sl.IterAtPosition(2)
-	assert.Equal(t, common.Comparators{}, iter.exhaust())
+	iter = sl.IterAtPosition(2).(*iterator[mockEntry])
+	assert.Equal(t, []mockEntry{}, iter.exhaust())
 }
 
 func BenchmarkInsert(b *testing.B) {
 	numItems := b.N
-	sl := New(uint64(0))
+	sl := New[mockEntry](uint64(0))
 
 	entries := generateMockEntries(numItems)
 
@@ -348,7 +449,7 @@ func BenchmarkInsert(b *testing.B) {
 
 func BenchmarkGet(b *testing.B) {
 	numItems := b.N
-	sl := New(uint64(0))
+	sl := New[mockEntry](uint64(0))
 
 	entries := generateMockEntries(numItems)
 	sl.Insert(entries...)
@@ -360,7 +461,7 @@ func BenchmarkGet(b *testing.B) {
 
 func BenchmarkDelete(b *testing.B) {
 	numItems := b.N
-	sl := New(uint64(0))
+	sl := New[mockEntry](uint64(0))
 
 	entries := generateMockEntries(numItems)
 	sl.Insert(entries...)
@@ -372,9 +473,9 @@ func BenchmarkDelete(b *testing.B) {
 
 func BenchmarkPrepend(b *testing.B) {
 	numItems := b.N
-	sl := New(uint64(0))
+	sl := New[mockEntry](uint64(0))
 
-	entries := make(common.Comparators, 0, numItems)
+	entries := make([]mockEntry, 0, numItems)
 	for i := b.N; i < b.N+numItems; i++ {
 		entries = append(entries, newMockEntry(uint64(i)))
 	}
@@ -388,7 +489,7 @@ func BenchmarkPrepend(b *testing.B) {
 
 func BenchmarkByPosition(b *testing.B) {
 	numItems := b.N
-	sl := New(uint64(0))
+	sl := New[mockEntry](uint64(0))
 	entries := generateMockEntries(numItems)
 	sl.Insert(entries...)
 
@@ -399,7 +500,7 @@ func BenchmarkByPosition(b *testing.B) {
 
 func BenchmarkInsertAtPosition(b *testing.B) {
 	numItems := b.N
-	sl := New(uint64(0))
+	sl := New[mockEntry](uint64(0))
 	entries := generateRandomMockEntries(numItems)
 
 	for i := 0; b.Loop(); i++ {

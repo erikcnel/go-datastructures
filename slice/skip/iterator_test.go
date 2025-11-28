@@ -24,8 +24,8 @@ import (
 
 func TestIterate(t *testing.T) {
 	e1 := newMockEntry(1)
-	n1 := newNode(e1, 8)
-	iter := &iterator{
+	n1 := newNode(e1, true, 8)
+	iter := &iterator[mockEntry]{
 		n:     n1,
 		first: true,
 	}
@@ -33,13 +33,12 @@ func TestIterate(t *testing.T) {
 	assert.True(t, iter.Next())
 	assert.Equal(t, e1, iter.Value())
 	assert.False(t, iter.Next())
-	assert.Nil(t, iter.Value())
 
 	e2 := newMockEntry(2)
-	n2 := newNode(e2, 8)
+	n2 := newNode(e2, true, 8)
 	n1.forward[0] = n2
 
-	iter = &iterator{
+	iter = &iterator[mockEntry]{
 		n:     n1,
 		first: true,
 	}
@@ -49,9 +48,7 @@ func TestIterate(t *testing.T) {
 	assert.True(t, iter.Next())
 	assert.Equal(t, e2, iter.Value())
 	assert.False(t, iter.Next())
-	assert.Nil(t, iter.Value())
 
-	iter = nilIterator()
+	iter = nilIterator[mockEntry]()
 	assert.False(t, iter.Next())
-	assert.Nil(t, iter.Value())
 }

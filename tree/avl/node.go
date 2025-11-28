@@ -16,35 +16,36 @@ limitations under the License.
 
 package avl
 
-type nodes []*node
+type nodes[T Comparable[T]] []*node[T]
 
-func (ns nodes) reset() {
+func (ns nodes[T]) reset() {
 	for i := range ns {
 		ns[i] = nil
 	}
 }
 
-type node struct {
+type node[T Comparable[T]] struct {
 	balance  int8 // bounded, |balance| should be <= 1
-	children [2]*node
-	entry    Entry
+	children [2]*node[T]
+	entry    T
+	hasEntry bool // needed since T might not be nillable
 }
 
-// copy returns a copy of this node with pointers to the original
-// children.
-func (n *node) copy() *node {
-	return &node{
+// copy returns a copy of this node with pointers to the original children.
+func (n *node[T]) copy() *node[T] {
+	return &node[T]{
 		balance:  n.balance,
-		children: [2]*node{n.children[0], n.children[1]},
+		children: [2]*node[T]{n.children[0], n.children[1]},
 		entry:    n.entry,
+		hasEntry: n.hasEntry,
 	}
 }
 
-// newNode returns a new node for the provided entry.  A nil
-// entry is used to represent the dummy node.
-func newNode(entry Entry) *node {
-	return &node{
+// newNode returns a new node for the provided entry.
+func newNode[T Comparable[T]](entry T, hasEntry bool) *node[T] {
+	return &node[T]{
 		entry:    entry,
-		children: [2]*node{},
+		hasEntry: hasEntry,
+		children: [2]*node[T]{},
 	}
 }

@@ -16,8 +16,8 @@ limitations under the License.
 
 package plus
 
-func chunkKeys(ks keys, numParts int64) []keys {
-	parts := make([]keys, numParts)
+func chunkKeys(ks keySlice[*mockKey], numParts int64) []keySlice[*mockKey] {
+	parts := make([]keySlice[*mockKey], numParts)
 	for i := range numParts {
 		parts[i] = ks[i*int64(len(ks))/numParts : (i+1)*int64(len(ks))/numParts]
 	}
@@ -28,18 +28,25 @@ type mockKey struct {
 	value int
 }
 
-func (mk *mockKey) Compare(other Key) int {
-	key := other.(*mockKey)
-	if key.value == mk.value {
+// Compare implements Comparable[*mockKey]
+func (mk *mockKey) Compare(other *mockKey) int {
+	if other.value == mk.value {
 		return 0
 	}
-	if key.value > mk.value {
+	if other.value > mk.value {
 		return 1
 	}
-
 	return -1
 }
 
 func newMockKey(value int) *mockKey {
 	return &mockKey{value}
+}
+
+func constructMockKeys(num int) keySlice[*mockKey] {
+	keys := make(keySlice[*mockKey], 0, num)
+	for i := range num {
+		keys = append(keys, newMockKey(i))
+	}
+	return keys
 }

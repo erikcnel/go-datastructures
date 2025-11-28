@@ -18,12 +18,12 @@ package plus
 
 const iteratorExhausted = -2
 
-type iterator struct {
-	node  *lnode
+type iterator[K Comparable[K]] struct {
+	node  *lnode[K]
 	index int
 }
 
-func (iter *iterator) Next() bool {
+func (iter *iterator[K]) Next() bool {
 	if iter.index == iteratorExhausted {
 		return false
 	}
@@ -41,28 +41,28 @@ func (iter *iterator) Next() bool {
 	return true
 }
 
-func (iter *iterator) Value() Key {
+func (iter *iterator[K]) Value() K {
 	if iter.index == iteratorExhausted ||
 		iter.index < 0 || iter.index >= len(iter.node.keys) {
-
-		return nil
+		var zero K
+		return zero
 	}
 
 	return iter.node.keys[iter.index]
 }
 
 // exhaust is a test function that's not exported
-func (iter *iterator) exhaust() keys {
-	keys := make(keys, 0, 10)
-	for iter := iter; iter.Next(); {
+func (iter *iterator[K]) exhaust() keySlice[K] {
+	keys := make(keySlice[K], 0, 10)
+	for iter.Next() {
 		keys = append(keys, iter.Value())
 	}
 
 	return keys
 }
 
-func nilIterator() *iterator {
-	return &iterator{
+func nilIterator[K Comparable[K]]() *iterator[K] {
+	return &iterator[K]{
 		index: iteratorExhausted,
 	}
 }

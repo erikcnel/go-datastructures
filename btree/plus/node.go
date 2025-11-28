@@ -16,27 +16,27 @@ limitations under the License.
 
 package plus
 
-func split(tree *btree, parent, child node) node {
+func split[K Comparable[K]](tree *BTree[K], parent, child node[K]) node[K] {
 	if !child.needsSplit(tree.nodeSize) {
 		return parent
 	}
 
 	key, left, right := child.split()
 	if parent == nil {
-		in := newInternalNode(tree.nodeSize)
+		in := newInternalNode[K](tree.nodeSize)
 		in.keys = append(in.keys, key)
 		in.nodes = append(in.nodes, left)
 		in.nodes = append(in.nodes, right)
 		return in
 	}
 
-	p := parent.(*inode)
+	p := parent.(*inode[K])
 	i := p.search(key)
 	// we want to ensure if the children are leaves we set
 	// the left node's left sibling to point to left
-	if cr, ok := left.(*lnode); ok {
+	if cr, ok := left.(*lnode[K]); ok {
 		if i > 0 {
-			p.nodes[i-1].(*lnode).pointer = cr
+			p.nodes[i-1].(*lnode[K]).pointer = cr
 		}
 	}
 	p.keys.insertAt(i, key)
@@ -46,64 +46,64 @@ func split(tree *btree, parent, child node) node {
 	return parent
 }
 
-type node interface {
-	insert(tree *btree, key Key) bool
+type node[K Comparable[K]] interface {
+	insert(tree *BTree[K], key K) bool
 	needsSplit(nodeSize uint64) bool
 	// key is the median key while left and right nodes
 	// represent the left and right nodes respectively
-	split() (Key, node, node)
-	search(key Key) int
-	find(key Key) *iterator
+	split() (K, node[K], node[K])
+	search(key K) int
+	find(key K) *iterator[K]
 }
 
-type nodes []node
+type nodes[K Comparable[K]] []node[K]
 
-func (nodes *nodes) insertAt(i int, node node) {
+func (nodes *nodes[K]) insertAt(i int, n node[K]) {
 	if i == len(*nodes) {
-		*nodes = append(*nodes, node)
+		*nodes = append(*nodes, n)
 		return
 	}
 
 	*nodes = append(*nodes, nil)
 	copy((*nodes)[i+1:], (*nodes)[i:])
-	(*nodes)[i] = node
+	(*nodes)[i] = n
 }
 
-func (ns nodes) splitAt(i int) (nodes, nodes) {
-	left := make(nodes, i, cap(ns))
-	right := make(nodes, len(ns)-i, cap(ns))
+func (ns nodes[K]) splitAt(i int) (nodes[K], nodes[K]) {
+	left := make(nodes[K], i, cap(ns))
+	right := make(nodes[K], len(ns)-i, cap(ns))
 	copy(left, ns[:i])
 	copy(right, ns[i:])
 	return left, right
 }
 
-type inode struct {
-	keys  keys
-	nodes nodes
+type inode[K Comparable[K]] struct {
+	keys  keySlice[K]
+	nodes nodes[K]
 }
 
-func (node *inode) search(key Key) int {
-	return node.keys.search(key)
+func (n *inode[K]) search(key K) int {
+	return n.keys.search(key)
 }
 
-func (node *inode) find(key Key) *iterator {
-	i := node.search(key)
-	if i == len(node.keys) {
-		return node.nodes[len(node.nodes)-1].find(key)
+func (n *inode[K]) find(key K) *iterator[K] {
+	i := n.search(key)
+	if i == len(n.keys) {
+		return n.nodes[len(n.nodes)-1].find(key)
 	}
 
-	found := node.keys[i]
+	found := n.keys[i]
 	switch found.Compare(key) {
 	case 0, 1:
-		return node.nodes[i+1].find(key)
+		return n.nodes[i+1].find(key)
 	default:
-		return node.nodes[i].find(key)
+		return n.nodes[i].find(key)
 	}
 }
 
-func (n *inode) insert(tree *btree, key Key) bool {
+func (n *inode[K]) insert(tree *BTree[K], key K) bool {
 	i := n.search(key)
-	var child node
+	var child node[K]
 	if i == len(n.keys) { // we want the last child node in this case
 		child = n.nodes[len(n.nodes)-1]
 	} else {
@@ -128,24 +128,25 @@ func (n *inode) insert(tree *btree, key Key) bool {
 	return result
 }
 
-func (n *inode) needsSplit(nodeSize uint64) bool {
+func (n *inode[K]) needsSplit(nodeSize uint64) bool {
 	return uint64(len(n.keys)) >= nodeSize
 }
 
-func (n *inode) split() (Key, node, node) {
+func (n *inode[K]) split() (K, node[K], node[K]) {
 	if len(n.keys) < 3 {
-		return nil, nil, nil
+		var zero K
+		return zero, nil, nil
 	}
 
 	i := len(n.keys) / 2
 	key := n.keys[i]
 
-	ourKeys := make(keys, len(n.keys)-i-1, cap(n.keys))
-	otherKeys := make(keys, i, cap(n.keys))
+	ourKeys := make(keySlice[K], len(n.keys)-i-1, cap(n.keys))
+	otherKeys := make(keySlice[K], i, cap(n.keys))
 	copy(ourKeys, n.keys[i+1:])
 	copy(otherKeys, n.keys[:i])
 	left, right := n.nodes.splitAt(i + 1)
-	otherNode := &inode{
+	otherNode := &inode[K]{
 		keys:  otherKeys,
 		nodes: left,
 	}
@@ -154,34 +155,34 @@ func (n *inode) split() (Key, node, node) {
 	return key, otherNode, n
 }
 
-func newInternalNode(size uint64) *inode {
-	return &inode{
-		keys:  make(keys, 0, size),
-		nodes: make(nodes, 0, size+1),
+func newInternalNode[K Comparable[K]](size uint64) *inode[K] {
+	return &inode[K]{
+		keys:  make(keySlice[K], 0, size),
+		nodes: make(nodes[K], 0, size+1),
 	}
 }
 
-type lnode struct {
+type lnode[K Comparable[K]] struct {
 	// points to the left leaf node is there is one
-	pointer *lnode
-	keys    keys
+	pointer *lnode[K]
+	keys    keySlice[K]
 }
 
-func (node *lnode) search(key Key) int {
-	return node.keys.search(key)
+func (n *lnode[K]) search(key K) int {
+	return n.keys.search(key)
 }
 
-func (lnode *lnode) insert(tree *btree, key Key) bool {
-	i := keySearch(lnode.keys, key)
+func (n *lnode[K]) insert(tree *BTree[K], key K) bool {
+	i := keySearch(n.keys, key)
 	var inserted bool
-	if i == len(lnode.keys) { // simple append will do
-		lnode.keys = append(lnode.keys, key)
+	if i == len(n.keys) { // simple append will do
+		n.keys = append(n.keys, key)
 		inserted = true
 	} else {
-		if lnode.keys[i].Compare(key) == 0 {
-			lnode.keys[i] = key
+		if n.keys[i].Compare(key) == 0 {
+			n.keys[i] = key
 		} else {
-			lnode.keys.insertAt(i, key)
+			n.keys.insertAt(i, key)
 			inserted = true
 		}
 	}
@@ -193,78 +194,80 @@ func (lnode *lnode) insert(tree *btree, key Key) bool {
 	return true
 }
 
-func (node *lnode) find(key Key) *iterator {
-	i := node.search(key)
-	if i == len(node.keys) {
-		if node.pointer == nil {
-			return nilIterator()
+func (n *lnode[K]) find(key K) *iterator[K] {
+	i := n.search(key)
+	if i == len(n.keys) {
+		if n.pointer == nil {
+			return nilIterator[K]()
 		}
 
-		return &iterator{
-			node:  node.pointer,
+		return &iterator[K]{
+			node:  n.pointer,
 			index: -1,
 		}
 	}
 
-	iter := &iterator{
-		node:  node,
+	iter := &iterator[K]{
+		node:  n,
 		index: i - 1,
 	}
 	return iter
 }
 
-func (node *lnode) split() (Key, node, node) {
-	if len(node.keys) < 2 {
-		return nil, nil, nil
+func (n *lnode[K]) split() (K, node[K], node[K]) {
+	if len(n.keys) < 2 {
+		var zero K
+		return zero, nil, nil
 	}
-	i := len(node.keys) / 2
-	key := node.keys[i]
-	otherKeys := make(keys, i, cap(node.keys))
-	ourKeys := make(keys, len(node.keys)-i, cap(node.keys))
+	i := len(n.keys) / 2
+	key := n.keys[i]
+	otherKeys := make(keySlice[K], i, cap(n.keys))
+	ourKeys := make(keySlice[K], len(n.keys)-i, cap(n.keys))
 	// we perform these copies so these slices don't all end up
 	// pointing to the same underlying array which may make
 	// for some very difficult to debug situations later.
-	copy(otherKeys, node.keys[:i])
-	copy(ourKeys, node.keys[i:])
+	copy(otherKeys, n.keys[:i])
+	copy(ourKeys, n.keys[i:])
 
 	// this should release the original array for GC
-	node.keys = ourKeys
-	otherNode := &lnode{
+	n.keys = ourKeys
+	otherNode := &lnode[K]{
 		keys:    otherKeys,
-		pointer: node,
+		pointer: n,
 	}
-	return key, otherNode, node
+	return key, otherNode, n
 }
 
-func (lnode *lnode) needsSplit(nodeSize uint64) bool {
-	return uint64(len(lnode.keys)) >= nodeSize
+func (n *lnode[K]) needsSplit(nodeSize uint64) bool {
+	return uint64(len(n.keys)) >= nodeSize
 }
 
-func newLeafNode(size uint64) *lnode {
-	return &lnode{
-		keys: make(keys, 0, size),
+func newLeafNode[K Comparable[K]](size uint64) *lnode[K] {
+	return &lnode[K]{
+		keys: make(keySlice[K], 0, size),
 	}
 }
 
-type keys []Key
+type keySlice[K Comparable[K]] []K
 
-func (keys keys) search(key Key) int {
-	return keySearch(keys, key)
+func (ks keySlice[K]) search(key K) int {
+	return keySearch(ks, key)
 }
 
-func (keys *keys) insertAt(i int, key Key) {
-	if i == len(*keys) {
-		*keys = append(*keys, key)
+func (ks *keySlice[K]) insertAt(i int, key K) {
+	if i == len(*ks) {
+		*ks = append(*ks, key)
 		return
 	}
 
-	*keys = append(*keys, nil)
-	copy((*keys)[i+1:], (*keys)[i:])
-	(*keys)[i] = key
+	var zero K
+	*ks = append(*ks, zero)
+	copy((*ks)[i+1:], (*ks)[i:])
+	(*ks)[i] = key
 }
 
-func (keys keys) reverse() {
-	for i := 0; i < len(keys)/2; i++ {
-		keys[i], keys[len(keys)-i-1] = keys[len(keys)-i-1], keys[i]
+func (ks keySlice[K]) reverse() {
+	for i := 0; i < len(ks)/2; i++ {
+		ks[i], ks[len(ks)-i-1] = ks[len(ks)-i-1], ks[i]
 	}
 }

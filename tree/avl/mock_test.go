@@ -18,15 +18,13 @@ package avl
 
 type mockEntry int
 
-func (me mockEntry) Compare(other Entry) int {
-	otherMe := other.(mockEntry)
-	if me > otherMe {
+// Compare implements Comparable[mockEntry] for the new generic API
+func (me mockEntry) Compare(other mockEntry) int {
+	if me > other {
 		return 1
 	}
-
-	if me < otherMe {
+	if me < other {
 		return -1
 	}
-
 	return 0
 }

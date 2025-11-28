@@ -17,14 +17,23 @@ limitations under the License.
 package plus
 
 import (
+	"math/rand"
 	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
+func constructRandomMockKeys(num int) keySlice[*mockKey] {
+	keys := make(keySlice[*mockKey], 0, num)
+	for range num {
+		keys = append(keys, newMockKey(rand.Int()))
+	}
+	return keys
+}
+
 func TestSearchKeys(t *testing.T) {
-	keys := keys{newMockKey(1), newMockKey(2), newMockKey(4)}
+	keys := keySlice[*mockKey]{newMockKey(1), newMockKey(2), newMockKey(4)}
 
 	testKey := newMockKey(5)
 	assert.Equal(t, 3, keySearch(keys, testKey))
@@ -38,63 +47,64 @@ func TestSearchKeys(t *testing.T) {
 	testKey = newMockKey(3)
 	assert.Equal(t, 2, keySearch(keys, testKey))
 
-	assert.Equal(t, 0, keySearch(nil, testKey))
+	var nilKeys keySlice[*mockKey]
+	assert.Equal(t, 0, keySearch(nilKeys, testKey))
 }
 
 func TestTreeInsert2_3_4(t *testing.T) {
-	tree := newBTree(3)
+	tree := New[*mockKey](3)
 	keys := constructMockKeys(4)
 
 	tree.Insert(keys...)
 
-	assert.Len(t, tree.root.(*inode).keys, 2)
-	assert.Len(t, tree.root.(*inode).nodes, 3)
-	assert.IsType(t, &inode{}, tree.root)
+	assert.Len(t, tree.root.(*inode[*mockKey]).keys, 2)
+	assert.Len(t, tree.root.(*inode[*mockKey]).nodes, 3)
+	assert.IsType(t, &inode[*mockKey]{}, tree.root)
 }
 
 func TestTreeInsert3_4_5(t *testing.T) {
-	tree := newBTree(4)
+	tree := New[*mockKey](4)
 	keys := constructMockKeys(5)
 
 	tree.Insert(keys...)
 
-	assert.Len(t, tree.root.(*inode).keys, 1)
-	assert.Len(t, tree.root.(*inode).nodes, 2)
-	assert.IsType(t, &inode{}, tree.root)
+	assert.Len(t, tree.root.(*inode[*mockKey]).keys, 1)
+	assert.Len(t, tree.root.(*inode[*mockKey]).nodes, 2)
+	assert.IsType(t, &inode[*mockKey]{}, tree.root)
 }
 
 func TestTreeInsertQuery2_3_4(t *testing.T) {
-	tree := newBTree(3)
+	tree := New[*mockKey](3)
 	keys := constructMockKeys(4)
 
 	tree.Insert(keys...)
 
-	iter := tree.Iter(newMockKey(0))
+	iter := tree.Iter(newMockKey(0)).(*iterator[*mockKey])
 	result := iter.exhaust()
 
 	assert.Equal(t, keys, result)
 }
 
 func TestTreeInsertQuery3_4_5(t *testing.T) {
-	tree := newBTree(4)
+	tree := New[*mockKey](4)
 	keys := constructMockKeys(5)
 
 	tree.Insert(keys...)
 
-	iter := tree.Iter(newMockKey(0))
+	iter := tree.Iter(newMockKey(0)).(*iterator[*mockKey])
 	result := iter.exhaust()
 
 	assert.Equal(t, keys, result)
 }
 
 func TestTreeInsertReverseOrder2_3_4(t *testing.T) {
-	tree := newBTree(3)
+	tree := New[*mockKey](3)
 	keys := constructMockKeys(4)
 	keys.reverse()
 
 	tree.Insert(keys...)
 
-	iter := tree.Iter(newMockKey(0))
+	iter := tree.Iter(newMockKey(0)).(*iterator[*mockKey])
 	result := iter.exhaust()
 	keys.reverse() // we want to fetch things in the correct
 	// ascending order
@@ -103,13 +113,13 @@ func TestTreeInsertReverseOrder2_3_4(t *testing.T) {
 }
 
 func TestTreeInsertReverseOrder3_4_5(t *testing.T) {
-	tree := newBTree(4)
+	tree := New[*mockKey](4)
 	keys := constructMockKeys(5)
 	keys.reverse()
 
 	tree.Insert(keys...)
 
-	iter := tree.Iter(newMockKey(0))
+	iter := tree.Iter(newMockKey(0)).(*iterator[*mockKey])
 	result := iter.exhaust()
 	keys.reverse() // we want to fetch things in the correct
 	// ascending order
@@ -118,7 +128,7 @@ func TestTreeInsertReverseOrder3_4_5(t *testing.T) {
 }
 
 func TestTreeInsert3_4_5_WithEndDuplicate(t *testing.T) {
-	tree := newBTree(4)
+	tree := New[*mockKey](4)
 	keys := constructMockKeys(5)
 
 	tree.Insert(keys...)
@@ -126,14 +136,14 @@ func TestTreeInsert3_4_5_WithEndDuplicate(t *testing.T) {
 	tree.Insert(duplicate)
 	keys[4] = duplicate
 
-	iter := tree.Iter(newMockKey(0))
+	iter := tree.Iter(newMockKey(0)).(*iterator[*mockKey])
 	result := iter.exhaust()
 
 	assert.Equal(t, keys, result)
 }
 
 func TestTreeInsert3_4_5_WithMiddleDuplicate(t *testing.T) {
-	tree := newBTree(4)
+	tree := New[*mockKey](4)
 	keys := constructMockKeys(5)
 
 	tree.Insert(keys...)
@@ -141,14 +151,14 @@ func TestTreeInsert3_4_5_WithMiddleDuplicate(t *testing.T) {
 	tree.Insert(duplicate)
 	keys[2] = duplicate
 
-	iter := tree.Iter(newMockKey(0))
+	iter := tree.Iter(newMockKey(0)).(*iterator[*mockKey])
 	result := iter.exhaust()
 
 	assert.Equal(t, keys, result)
 }
 
 func TestTreeInsert3_4_5WithEarlyDuplicate(t *testing.T) {
-	tree := newBTree(4)
+	tree := New[*mockKey](4)
 	keys := constructMockKeys(5)
 
 	tree.Insert(keys...)
@@ -156,82 +166,82 @@ func TestTreeInsert3_4_5WithEarlyDuplicate(t *testing.T) {
 	tree.Insert(duplicate)
 	keys[0] = duplicate
 
-	iter := tree.Iter(newMockKey(0))
+	iter := tree.Iter(newMockKey(0)).(*iterator[*mockKey])
 	result := iter.exhaust()
 
 	assert.Equal(t, keys, result)
 }
 
 func TestTreeInsert3_4_5WithDuplicateID(t *testing.T) {
-	tree := newBTree(4)
+	tree := New[*mockKey](4)
 	keys := constructMockKeys(5)
 
 	key := newMockKey(2)
 	tree.Insert(keys...)
 	tree.Insert(key)
 
-	iter := tree.Iter(newMockKey(0))
+	iter := tree.Iter(newMockKey(0)).(*iterator[*mockKey])
 	result := iter.exhaust()
 
 	assert.Equal(t, keys, result)
 }
 
 func TestTreeInsert3_4_5MiddleQuery(t *testing.T) {
-	tree := newBTree(4)
+	tree := New[*mockKey](4)
 	keys := constructMockKeys(5)
 
 	tree.Insert(keys...)
 
-	iter := tree.Iter(newMockKey(2))
+	iter := tree.Iter(newMockKey(2)).(*iterator[*mockKey])
 	result := iter.exhaust()
 
 	assert.Equal(t, keys[2:], result)
 }
 
 func TestTreeInsert3_4_5LateQuery(t *testing.T) {
-	tree := newBTree(4)
+	tree := New[*mockKey](4)
 	keys := constructMockKeys(5)
 
 	tree.Insert(keys...)
 
-	iter := tree.Iter(newMockKey(4))
+	iter := tree.Iter(newMockKey(4)).(*iterator[*mockKey])
 	result := iter.exhaust()
 
 	assert.Equal(t, keys[4:], result)
 }
 
 func TestTreeInsert3_4_5AfterQuery(t *testing.T) {
-	tree := newBTree(4)
+	tree := New[*mockKey](4)
 	keys := constructMockKeys(5)
 
 	tree.Insert(keys...)
 
-	iter := tree.Iter(newMockKey(5))
+	iter := tree.Iter(newMockKey(5)).(*iterator[*mockKey])
 	result := iter.exhaust()
 
 	assert.Len(t, result, 0)
 }
 
 func TestTreeInternalNodeSplit(t *testing.T) {
-	tree := newBTree(4)
+	tree := New[*mockKey](4)
 	keys := constructMockKeys(10)
 
 	tree.Insert(keys...)
 
-	iter := tree.Iter(newMockKey(0))
+	iter := tree.Iter(newMockKey(0)).(*iterator[*mockKey])
 	result := iter.exhaust()
 
 	assert.Equal(t, keys, result)
 }
 
 func TestTreeInternalNodeSplitReverseOrder(t *testing.T) {
-	tree := newBTree(4)
+	tree := New[*mockKey](4)
 	keys := constructMockKeys(10)
 	keys.reverse()
 
 	tree.Insert(keys...)
 
-	iter := tree.Iter(newMockKey(0))
+	iter := tree.Iter(newMockKey(0)).(*iterator[*mockKey])
 	result := iter.exhaust()
 	keys.reverse()
 
@@ -240,16 +250,16 @@ func TestTreeInternalNodeSplitReverseOrder(t *testing.T) {
 
 func TestTreeInternalNodeSplitRandomOrder(t *testing.T) {
 	ids := []int{6, 2, 9, 0, 3, 4, 7, 1, 8, 5}
-	keys := make(keys, 0, len(ids))
+	keys := make(keySlice[*mockKey], 0, len(ids))
 
 	for _, id := range ids {
 		keys = append(keys, newMockKey(id))
 	}
 
-	tree := newBTree(4)
+	tree := New[*mockKey](4)
 	tree.Insert(keys...)
 
-	iter := tree.Iter(newMockKey(0))
+	iter := tree.Iter(newMockKey(0)).(*iterator[*mockKey])
 	result := iter.exhaust()
 
 	assert.Len(t, result, 10)
@@ -260,16 +270,16 @@ func TestTreeInternalNodeSplitRandomOrder(t *testing.T) {
 
 func TestTreeRandomOrderQuery(t *testing.T) {
 	ids := []int{6, 2, 9, 0, 3, 4, 7, 1, 8, 5}
-	keys := make(keys, 0, len(ids))
+	keys := make(keySlice[*mockKey], 0, len(ids))
 
 	for _, id := range ids {
 		keys = append(keys, newMockKey(id))
 	}
 
-	tree := newBTree(4)
+	tree := New[*mockKey](4)
 	tree.Insert(keys...)
 
-	iter := tree.Iter(newMockKey(4))
+	iter := tree.Iter(newMockKey(4)).(*iterator[*mockKey])
 	result := iter.exhaust()
 
 	assert.Len(t, result, 6)
@@ -280,31 +290,36 @@ func TestTreeRandomOrderQuery(t *testing.T) {
 
 func TestTreeGet(t *testing.T) {
 	keys := constructRandomMockKeys(100)
-	tree := newBTree(64)
+	tree := New[*mockKey](64)
 	tree.Insert(keys...)
 
 	assert.Equal(t, uint64(100), tree.Len())
-	fromTree := tree.Get(keys...)
-	for _, key := range keys {
-		assert.Contains(t, fromTree, key)
+	fromTree, found := tree.Get(keys...)
+	for i, key := range keys {
+		assert.True(t, found[i])
+		assert.Equal(t, key, fromTree[i])
 	}
 }
 
 func TestTreeGetNotFound(t *testing.T) {
 	keys := constructMockKeys(5)
-	tree := newBTree(64)
+	tree := New[*mockKey](64)
 	tree.Insert(keys...)
 
-	assert.Equal(t, Keys{nil}, tree.Get(newMockKey(20)))
+	results, found := tree.Get(newMockKey(20))
+	assert.False(t, found[0])
+	assert.Nil(t, results[0])
 }
 
 func TestGetExactMatchesOnly(t *testing.T) {
 	k1 := newMockKey(0)
 	k2 := newMockKey(5)
-	tree := newBTree(64)
+	tree := New[*mockKey](64)
 	tree.Insert(k1, k2)
 
-	assert.Equal(t, Keys{nil}, tree.Get(newMockKey(3)))
+	results, found := tree.Get(newMockKey(3))
+	assert.False(t, found[0])
+	assert.Nil(t, results[0])
 }
 
 func BenchmarkIteration(b *testing.B) {
@@ -312,13 +327,13 @@ func BenchmarkIteration(b *testing.B) {
 	ary := uint64(16)
 
 	keys := constructMockKeys(numItems)
-	tree := newBTree(ary)
+	tree := New[*mockKey](ary)
 	tree.Insert(keys...)
 
 	searchKey := newMockKey(0)
 
 	for b.Loop() {
-		iter := tree.Iter(searchKey)
+		iter := tree.Iter(searchKey).(*iterator[*mockKey])
 		iter.exhaust()
 	}
 }
@@ -328,7 +343,7 @@ func BenchmarkInsert(b *testing.B) {
 	ary := uint64(16)
 
 	keys := constructMockKeys(numItems)
-	tree := newBTree(ary)
+	tree := New[*mockKey](ary)
 
 	for i := 0; b.Loop(); i++ {
 		tree.Insert(keys[i%numItems])
@@ -340,7 +355,7 @@ func BenchmarkBulkAdd(b *testing.B) {
 	keys := constructRandomMockKeys(numItems)
 
 	for b.Loop() {
-		tree := newBTree(1024)
+		tree := New[*mockKey](1024)
 		tree.Insert(keys...)
 	}
 }
@@ -350,7 +365,7 @@ func BenchmarkGet(b *testing.B) {
 	ary := uint64(16)
 
 	keys := constructMockKeys(numItems)
-	tree := newBTree(ary)
+	tree := New[*mockKey](ary)
 	tree.Insert(keys...)
 
 	for i := 0; b.Loop(); i++ {
@@ -360,12 +375,12 @@ func BenchmarkGet(b *testing.B) {
 
 func BenchmarkBulkAddToExisting(b *testing.B) {
 	numItems := 100000
-	keySet := make([]keys, 0, b.N)
+	keySet := make([]keySlice[*mockKey], 0, b.N)
 	for b.Loop() {
 		keySet = append(keySet, constructRandomMockKeys(numItems))
 	}
 
-	tree := newBTree(1024)
+	tree := New[*mockKey](1024)
 
 	for i := 0; b.Loop(); i++ {
 		tree.Insert(keySet[i]...)
@@ -374,12 +389,12 @@ func BenchmarkBulkAddToExisting(b *testing.B) {
 
 func BenchmarkReadAndWrites(b *testing.B) {
 	numItems := 1000
-	ks := make([]keys, 0, b.N)
+	ks := make([]keySlice[*mockKey], 0, b.N)
 	for b.Loop() {
 		ks = append(ks, constructRandomMockKeys(numItems))
 	}
 
-	tree := newBTree(16)
+	tree := New[*mockKey](16)
 
 	for i := 0; b.Loop(); i++ {
 		tree.Insert(ks[i]...)
@@ -393,9 +408,9 @@ func BenchmarkSimultaneousReadsAndWrites(b *testing.B) {
 	keys := constructRandomMockKeys(numItems)
 	chunks := chunkKeys(keys, int64(numRoutines))
 
-	trees := make([]*btree, 0, numItems)
+	trees := make([]*BTree[*mockKey], 0, numItems)
 	for b.Loop() {
-		trees = append(trees, newBTree(8))
+		trees = append(trees, New[*mockKey](8))
 	}
 
 	var wg sync.WaitGroup

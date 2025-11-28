@@ -16,27 +16,31 @@ limitations under the License.
 
 package plus
 
-// Keys is a typed list of Key interfaces.
-type Keys []Key
+// Comparable is a constraint for types that can be compared for ordering.
+// The Compare method should return:
+//   - negative value if receiver < other
+//   - zero if receiver == other
+//   - positive value if receiver > other
+type Comparable[T any] interface {
+	Compare(other T) int
+}
 
+// Key is kept for backward compatibility.
+// Deprecated: Use Comparable[T] with the generic BTree[T] instead.
 type Key interface {
-	// Compare should return an int indicating how this key relates
-	// to the provided key.  -1 will indicate less than, 0 will indicate
-	// equality, and 1 will indicate greater than.  Duplicate keys
-	// are allowed, but duplicate IDs are not.
 	Compare(Key) int
 }
 
-// Iterator will be called with matching keys until either false is
-// returned or we run out of keys to iterate.
-type Iterator interface {
-	// Next will move the iterator to the next position and return
-	// a bool indicating if there is a value.
+// Keys is a typed list of Key interfaces.
+// Deprecated: Use []T with the generic BTree[T] instead.
+type Keys []Key
+
+// Iterator defines an interface for traversing tree results in order.
+type Iterator[T any] interface {
+	// Next moves the iterator to the next position and returns
+	// true if there is a value.
 	Next() bool
-	// Value returns a Key at the associated iterator position.  Returns
-	// nil if the iterator is exhausted or has never been nexted.
-	Value() Key
-	// exhaust is an internal helper method to iterate this iterator
-	// until exhausted and returns the resulting list of keys.
-	exhaust() keys
+	// Value returns the key at the current iterator position.
+	// Returns zero value if exhausted or not yet started.
+	Value() T
 }

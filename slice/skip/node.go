@@ -16,35 +16,35 @@ limitations under the License.
 
 package skip
 
-import "github.com/Workiva/go-datastructures/common"
-
 type widths []uint64
 
-type nodes []*node
+type nodes[T Comparable[T]] []*node[T]
 
-type node struct {
+type node[T Comparable[T]] struct {
 	// forward denotes the forward pointing pointers in this
 	// node.
-	forward nodes
+	forward nodes[T]
 	// widths keeps track of the distance between this pointer
 	// and the forward pointers so we can access skip list
 	// values by position in logarithmic time.
 	widths widths
 	// entry is the associated value with this node.
-	entry common.Comparator
+	entry    T
+	hasEntry bool // needed since T might not be nillable
 }
 
-func (n *node) Compare(e common.Comparator) int {
+func (n *node[T]) Compare(e T) int {
 	return n.entry.Compare(e)
 }
 
 // newNode will allocate and return a new node with the entry
-// provided.  maxLevels will determine the length of the forward
+// provided. maxLevels will determine the length of the forward
 // pointer list associated with this node.
-func newNode(cmp common.Comparator, maxLevels uint8) *node {
-	return &node{
-		entry:   cmp,
-		forward: make(nodes, maxLevels),
-		widths:  make(widths, maxLevels),
+func newNode[T Comparable[T]](cmp T, hasEntry bool, maxLevels uint8) *node[T] {
+	return &node[T]{
+		entry:    cmp,
+		hasEntry: hasEntry,
+		forward:  make(nodes[T], maxLevels),
+		widths:   make(widths, maxLevels),
 	}
 }

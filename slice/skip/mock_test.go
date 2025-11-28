@@ -16,21 +16,15 @@ limitations under the License.
 
 package skip
 
-import (
-	"github.com/stretchr/testify/mock"
-
-	"github.com/Workiva/go-datastructures/common"
-)
-
 type mockEntry uint64
 
-func (me mockEntry) Compare(other common.Comparator) int {
-	otherU := other.(mockEntry)
-	if me == otherU {
+// Compare implements Comparable[mockEntry]
+func (me mockEntry) Compare(other mockEntry) int {
+	if me == other {
 		return 0
 	}
 
-	if me > otherU {
+	if me > other {
 		return 1
 	}
 
@@ -39,27 +33,4 @@ func (me mockEntry) Compare(other common.Comparator) int {
 
 func newMockEntry(key uint64) mockEntry {
 	return mockEntry(key)
-}
-
-type mockIterator struct {
-	mock.Mock
-}
-
-func (mi *mockIterator) Next() bool {
-	args := mi.Called()
-	return args.Bool(0)
-}
-
-func (mi *mockIterator) Value() common.Comparator {
-	args := mi.Called()
-	result, ok := args.Get(0).(common.Comparator)
-	if !ok {
-		return nil
-	}
-
-	return result
-}
-
-func (mi *mockIterator) exhaust() common.Comparators {
-	return nil
 }

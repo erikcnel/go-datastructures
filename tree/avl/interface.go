@@ -16,16 +16,21 @@ limitations under the License.
 
 package avl
 
-// Entries is a list of type Entry.
-type Entries []Entry
+// Comparable is a constraint for types that can be compared for ordering.
+// The Compare method should return:
+//   - negative value if receiver < other
+//   - zero if receiver == other
+//   - positive value if receiver > other
+type Comparable[T any] interface {
+	Compare(other T) int
+}
 
-// Entry represents all items that can be placed into the AVL tree.
-// They must implement a Compare method that can be used to determine
-// the Entry's correct place in the tree.  Any object can implement
-// Compare.
+// Entry is kept for backward compatibility.
+// Deprecated: Use Comparable[T] with the generic Immutable[T] instead.
 type Entry interface {
-	// Compare should return a value indicating the relationship
-	// of this Entry to the provided Entry.  A -1 means this entry
-	// is less than, 0 means equality, and 1 means greater than.
 	Compare(Entry) int
 }
+
+// Entries is a list of type Entry.
+// Deprecated: Use []T with the generic Immutable[T] instead.
+type Entries []Entry

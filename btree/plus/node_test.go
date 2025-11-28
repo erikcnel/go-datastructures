@@ -17,14 +17,13 @@ limitations under the License.
 package plus
 
 import (
-	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func constructMockPayloads(num int) keys {
-	keys := make(keys, 0, num)
+func constructMockPayloads(num int) keySlice[*mockKey] {
+	keys := make(keySlice[*mockKey], 0, num)
 	for i := range num {
 		keys = append(keys, newMockKey(i))
 	}
@@ -32,65 +31,46 @@ func constructMockPayloads(num int) keys {
 	return keys
 }
 
-func constructMockKeys(num int) keys {
-	keys := make(keys, 0, num)
-
+func constructMockNodes(num int) nodes[*mockKey] {
+	ns := make(nodes[*mockKey], 0, num)
 	for i := range num {
-		keys = append(keys, newMockKey(i))
-	}
-
-	return keys
-}
-
-func constructRandomMockKeys(num int) keys {
-	keys := make(keys, 0, num)
-	for range num {
-		keys = append(keys, newMockKey(rand.Int()))
-	}
-
-	return keys
-}
-
-func constructMockNodes(num int) nodes {
-	nodes := make(nodes, 0, num)
-	for i := range num {
-		keys := make(keys, 0, num)
+		keys := make(keySlice[*mockKey], 0, num)
 		for j := range num {
 			keys = append(keys, newMockKey(j*i+j))
 		}
 
-		node := &lnode{
+		n := &lnode[*mockKey]{
 			keys: keys,
 		}
-		nodes = append(nodes, node)
+		ns = append(ns, n)
 		if i > 0 {
-			nodes[i-1].(*lnode).pointer = node
+			ns[i-1].(*lnode[*mockKey]).pointer = n
 		}
 	}
 
-	return nodes
+	return ns
 }
 
-func constructMockInternalNode(nodes nodes) *inode {
-	if len(nodes) < 2 {
+func constructMockInternalNode(ns nodes[*mockKey]) *inode[*mockKey] {
+	if len(ns) < 2 {
 		return nil
 	}
 
-	keys := make(keys, 0, len(nodes)-1)
-	for i := 1; i < len(nodes); i++ {
-		keys = append(keys, nodes[i].(*lnode).keys[0])
+	keys := make(keySlice[*mockKey], 0, len(ns)-1)
+	for i := 1; i < len(ns); i++ {
+		keys = append(keys, ns[i].(*lnode[*mockKey]).keys[0])
 	}
 
-	in := &inode{
+	in := &inode[*mockKey]{
 		keys:  keys,
-		nodes: nodes,
+		nodes: ns,
 	}
 	return in
 }
 
 func TestLeafNodeInsert(t *testing.T) {
-	tree := newBTree(3)
-	n := newLeafNode(3)
+	tree := New[*mockKey](3)
+	n := newLeafNode[*mockKey](3)
 	key := newMockKey(3)
 
 	n.insert(tree, key)
@@ -102,8 +82,8 @@ func TestLeafNodeInsert(t *testing.T) {
 }
 
 func TestDuplicateLeafNodeInsert(t *testing.T) {
-	tree := newBTree(3)
-	n := newLeafNode(3)
+	tree := New[*mockKey](3)
+	n := newLeafNode[*mockKey](3)
 	k1 := newMockKey(3)
 	k2 := newMockKey(3)
 
@@ -113,8 +93,8 @@ func TestDuplicateLeafNodeInsert(t *testing.T) {
 }
 
 func TestMultipleLeafNodeInsert(t *testing.T) {
-	tree := newBTree(3)
-	n := newLeafNode(3)
+	tree := New[*mockKey](3)
+	n := newLeafNode[*mockKey](3)
 
 	k1 := newMockKey(3)
 	k2 := newMockKey(4)
@@ -133,49 +113,49 @@ func TestMultipleLeafNodeInsert(t *testing.T) {
 func TestLeafNodeSplitEvenNumber(t *testing.T) {
 	keys := constructMockPayloads(4)
 
-	node := &lnode{
+	node := &lnode[*mockKey]{
 		keys: keys,
 	}
 
 	key, left, right := node.split()
 	assert.Equal(t, keys[2], key)
-	assert.Equal(t, left.(*lnode).keys, keys[:2])
-	assert.Equal(t, right.(*lnode).keys, keys[2:])
-	assert.Equal(t, left.(*lnode).pointer, right)
+	assert.Equal(t, left.(*lnode[*mockKey]).keys, keys[:2])
+	assert.Equal(t, right.(*lnode[*mockKey]).keys, keys[2:])
+	assert.Equal(t, left.(*lnode[*mockKey]).pointer, right)
 }
 
 func TestLeafNodeSplitOddNumber(t *testing.T) {
 	keys := constructMockPayloads(3)
 
-	node := &lnode{
+	node := &lnode[*mockKey]{
 		keys: keys,
 	}
 
 	key, left, right := node.split()
 	assert.Equal(t, keys[1], key)
-	assert.Equal(t, left.(*lnode).keys, keys[:1])
-	assert.Equal(t, right.(*lnode).keys, keys[1:])
-	assert.Equal(t, left.(*lnode).pointer, right)
+	assert.Equal(t, left.(*lnode[*mockKey]).keys, keys[:1])
+	assert.Equal(t, right.(*lnode[*mockKey]).keys, keys[1:])
+	assert.Equal(t, left.(*lnode[*mockKey]).pointer, right)
 }
 
 func TestTwoKeysLeafNodeSplit(t *testing.T) {
 	keys := constructMockPayloads(2)
 
-	node := &lnode{
+	node := &lnode[*mockKey]{
 		keys: keys,
 	}
 
 	key, left, right := node.split()
 	assert.Equal(t, keys[1], key)
-	assert.Equal(t, left.(*lnode).keys, keys[:1])
-	assert.Equal(t, right.(*lnode).keys, keys[1:])
-	assert.Equal(t, left.(*lnode).pointer, right)
+	assert.Equal(t, left.(*lnode[*mockKey]).keys, keys[:1])
+	assert.Equal(t, right.(*lnode[*mockKey]).keys, keys[1:])
+	assert.Equal(t, left.(*lnode[*mockKey]).pointer, right)
 }
 
 func TestLessThanTwoKeysSplit(t *testing.T) {
 	keys := constructMockPayloads(1)
 
-	node := &lnode{
+	node := &lnode[*mockKey]{
 		keys: keys,
 	}
 
@@ -186,32 +166,32 @@ func TestLessThanTwoKeysSplit(t *testing.T) {
 }
 
 func TestInternalNodeSplit2_3_4(t *testing.T) {
-	nodes := constructMockNodes(4)
-	in := constructMockInternalNode(nodes)
+	ns := constructMockNodes(4)
+	in := constructMockInternalNode(ns)
 
 	key, left, right := in.split()
-	assert.Equal(t, nodes[3].(*lnode).keys[0], key)
-	assert.Len(t, left.(*inode).keys, 1)
-	assert.Len(t, right.(*inode).keys, 1)
-	assert.Equal(t, nodes[:2], left.(*inode).nodes)
-	assert.Equal(t, nodes[2:], right.(*inode).nodes)
+	assert.Equal(t, ns[3].(*lnode[*mockKey]).keys[0], key)
+	assert.Len(t, left.(*inode[*mockKey]).keys, 1)
+	assert.Len(t, right.(*inode[*mockKey]).keys, 1)
+	assert.Equal(t, ns[:2], left.(*inode[*mockKey]).nodes)
+	assert.Equal(t, ns[2:], right.(*inode[*mockKey]).nodes)
 }
 
 func TestInternalNodeSplit3_4_5(t *testing.T) {
-	nodes := constructMockNodes(5)
-	in := constructMockInternalNode(nodes)
+	ns := constructMockNodes(5)
+	in := constructMockInternalNode(ns)
 
 	key, left, right := in.split()
-	assert.Equal(t, nodes[4].(*lnode).keys[0], key)
-	assert.Len(t, left.(*inode).keys, 2)
-	assert.Len(t, right.(*inode).keys, 1)
-	assert.Equal(t, nodes[:3], left.(*inode).nodes)
-	assert.Equal(t, nodes[3:], right.(*inode).nodes)
+	assert.Equal(t, ns[4].(*lnode[*mockKey]).keys[0], key)
+	assert.Len(t, left.(*inode[*mockKey]).keys, 2)
+	assert.Len(t, right.(*inode[*mockKey]).keys, 1)
+	assert.Equal(t, ns[:3], left.(*inode[*mockKey]).nodes)
+	assert.Equal(t, ns[3:], right.(*inode[*mockKey]).nodes)
 }
 
 func TestInternalNodeLessThan3Keys(t *testing.T) {
-	nodes := constructMockNodes(2)
-	in := constructMockInternalNode(nodes)
+	ns := constructMockNodes(2)
+	in := constructMockInternalNode(ns)
 
 	key, left, right := in.split()
 	assert.Nil(t, key)

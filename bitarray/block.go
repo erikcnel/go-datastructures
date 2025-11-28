@@ -36,7 +36,7 @@ const s = uint64(unsafe.Sizeof(block(0)) * 8)
 const maximumBlock = block(0) | ^block(0)
 
 func (b block) toNums(offset uint64, nums *[]uint64) {
-	for i := uint64(0); i < s; i++ {
+	for i := range s {
 		if b&block(1<<i) > 0 {
 			*nums = append(*nums, i+offset)
 		}
@@ -55,7 +55,7 @@ func (b block) findLeftPosition() uint64 {
 }
 
 func (b block) findRightPosition() uint64 {
-	for i := uint64(0); i < s; i++ {
+	for i := range s {
 		test := block(1 << i)
 		if b&test == test {
 			return i

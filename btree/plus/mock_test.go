@@ -18,7 +18,7 @@ package plus
 
 func chunkKeys(ks keys, numParts int64) []keys {
 	parts := make([]keys, numParts)
-	for i := int64(0); i < numParts; i++ {
+	for i := range numParts {
 		parts[i] = ks[i*int64(len(ks))/numParts : (i+1)*int64(len(ks))/numParts]
 	}
 	return parts

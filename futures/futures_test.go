@@ -17,83 +17,122 @@ limitations under the License.
 package futures
 
 import (
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestWaitOnGetResult(t *testing.T) {
-	completer := make(chan interface{})
-	f := New(completer, time.Duration(30*time.Minute))
-	var result interface{}
-	var err error
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		result, err = f.GetResult()
-		wg.Done()
-	}()
+func TestFutureGetResult(t *testing.T) {
+	completer := make(chan string, 1)
+	future := New[string](completer, time.Second)
 
-	completer <- `test`
-	wg.Wait()
+	completer <- "hello"
 
-	assert.Nil(t, err)
-	assert.Equal(t, `test`, result)
-
-	// ensure we don't get paused on the next iteration.
-	result, err = f.GetResult()
-
-	assert.Equal(t, `test`, result)
-	assert.Nil(t, err)
+	result, err := future.GetResult()
+	require.NoError(t, err)
+	assert.Equal(t, "hello", result)
 }
 
-func TestHasResult(t *testing.T) {
-	completer := make(chan interface{})
-	f := New(completer, time.Duration(30*time.Minute))
+func TestFutureTimeout(t *testing.T) {
+	completer := make(chan string, 1)
+	future := New[string](completer, 50*time.Millisecond)
 
-	assert.False(t, f.HasResult())
+	// Don't complete the future
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		f.GetResult()
-		wg.Done()
-	}()
-
-	completer <- `test`
-	wg.Wait()
-
-	assert.True(t, f.HasResult())
+	result, err := future.GetResult()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "timeout")
+	assert.Equal(t, "", result)
 }
 
-func TestTimeout(t *testing.T) {
-	completer := make(chan interface{})
-	f := New(completer, time.Duration(0))
+func TestFutureHasResult(t *testing.T) {
+	completer := make(chan string, 1)
+	future := New[string](completer, time.Second)
 
-	result, err := f.GetResult()
+	assert.False(t, future.HasResult())
 
-	assert.Nil(t, result)
-	assert.NotNil(t, err)
+	completer <- "hello"
+	time.Sleep(10 * time.Millisecond)
+
+	assert.True(t, future.HasResult())
 }
 
-func BenchmarkFuture(b *testing.B) {
-	completer := make(chan interface{})
-	timeout := time.Duration(30 * time.Minute)
-	var wg sync.WaitGroup
+func TestFutureMultipleListeners(t *testing.T) {
+	completer := make(chan int, 1)
+	future := New[int](completer, time.Second)
 
-	b.ResetTimer()
+	results := make(chan int, 3)
 
-	for i := 0; i < b.N; i++ {
-		wg.Add(1)
-		f := New(completer, timeout)
+	for range 3 {
 		go func() {
-			f.GetResult()
-			wg.Done()
+			r, _ := future.GetResult()
+			results <- r
 		}()
-
-		completer <- `test`
-		wg.Wait()
 	}
+
+	completer <- 42
+
+	for range 3 {
+		assert.Equal(t, 42, <-results)
+	}
+}
+
+func TestPromise(t *testing.T) {
+	promise := NewPromise[string](time.Second)
+
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		promise.Complete("done")
+	}()
+
+	result, err := promise.Future().GetResult()
+	require.NoError(t, err)
+	assert.Equal(t, "done", result)
+}
+
+func TestPromiseMultipleComplete(t *testing.T) {
+	promise := NewPromise[int](time.Second)
+
+	promise.Complete(1)
+	promise.Complete(2) // Should be ignored
+
+	result, _ := promise.Future().GetResult()
+	assert.Equal(t, 1, result)
+}
+
+func TestAll(t *testing.T) {
+	c1 := make(chan int, 1)
+	c2 := make(chan int, 1)
+	c3 := make(chan int, 1)
+
+	f1 := New[int](c1, time.Second)
+	f2 := New[int](c2, time.Second)
+	f3 := New[int](c3, time.Second)
+
+	go func() {
+		c1 <- 1
+		c2 <- 2
+		c3 <- 3
+	}()
+
+	results, err := All(f1, f2, f3)
+	require.NoError(t, err)
+	assert.Equal(t, []int{1, 2, 3}, results)
+}
+
+func TestRace(t *testing.T) {
+	c1 := make(chan string, 1)
+	c2 := make(chan string, 1)
+
+	f1 := New[string](c1, time.Second)
+	f2 := New[string](c2, time.Second)
+
+	c1 <- "first"
+	// c2 never completes
+
+	result, err := Race(f1, f2)
+	require.NoError(t, err)
+	assert.Equal(t, "first", result)
 }

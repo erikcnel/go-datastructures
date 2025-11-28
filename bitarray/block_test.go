@@ -37,14 +37,13 @@ func TestBlockToNums(t *testing.T) {
 
 func BenchmarkBlockToNums(b *testing.B) {
 	block := block(0)
-	for i := uint64(0); i < s; i++ {
+	for i := range s {
 		block = block.insert(i)
 	}
 
 	nums := make([]uint64, 0, 0)
-	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		block.toNums(0, &nums)
 	}
 }

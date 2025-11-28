@@ -87,9 +87,7 @@ func BenchmarkOrSparseWithSparse(b *testing.B) {
 		ctx = !ctx
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		orSparseWithSparseBitArray(sba, other)
 	}
 }
@@ -157,9 +155,7 @@ func BenchmarkOrSparseWithDense(b *testing.B) {
 		ctx = !ctx
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		orSparseWithDenseBitArray(sba, other)
 	}
 }
@@ -220,9 +216,7 @@ func BenchmarkOrDenseWithDense(b *testing.B) {
 		ctx = !ctx
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		orDenseWithDenseBitArray(dba, other)
 	}
 }

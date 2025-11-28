@@ -28,7 +28,7 @@ import (
 
 func generateMultiDimensionalEntries(num int) rangetree.Entries {
 	entries := make(rangetree.Entries, 0, num)
-	for i := 0; i < num; i++ {
+	for i := range num {
 		entries = append(entries, newMockEntry(int64(i), int64(i)))
 	}
 
@@ -37,7 +37,7 @@ func generateMultiDimensionalEntries(num int) rangetree.Entries {
 
 func generateRandomMultiDimensionalEntries(num int) rangetree.Entries {
 	entries := make(rangetree.Entries, 0, num)
-	for i := 0; i < num; i++ {
+	for range num {
 		value := rand.Int63()
 		entries = append(entries, newMockEntry(value, value))
 	}
@@ -311,9 +311,7 @@ func BenchmarkMultiDimensionInsert(b *testing.B) {
 	rt := new(2)
 	entries := generateMultiDimensionalEntries(numItems)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		rt.Add(entries[i%numItems])
 	}
 }
@@ -323,9 +321,7 @@ func BenchmarkMultiDimensionInsertReverse(b *testing.B) {
 	rt := new(2)
 	entries := generateMultiDimensionalEntries(numItems)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		index := numItems - (i % numItems) - 1
 		rt.Add(entries[index])
 	}
@@ -336,9 +332,7 @@ func BenchmarkMultiDimensionRandomInsert(b *testing.B) {
 	rt := new(2)
 	entries := generateRandomMultiDimensionalEntries(numItems)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		rt.Add(entries[i%numItems])
 	}
 }
@@ -349,9 +343,7 @@ func BenchmarkMultiDimensionalGet(b *testing.B) {
 	entries := generateRandomMultiDimensionalEntries(numItems)
 	rt.Add(entries...)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		rt.Get(entries[i%numItems])
 	}
 }
@@ -362,9 +354,7 @@ func BenchmarkMultiDimensionDelete(b *testing.B) {
 	entries := generateRandomMultiDimensionalEntries(numItems)
 	rt.Add(entries...)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		rt.Delete(entries[i%numItems])
 	}
 }
@@ -377,9 +367,7 @@ func BenchmarkMultiDimensionQuery(b *testing.B) {
 	iv := newMockInterval([]int64{0, 0}, []int64{math.MaxInt64, math.MaxInt64})
 	var result rangetree.Entries
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		result = rt.Query(iv)
 	}
 
@@ -392,9 +380,7 @@ func BenchmarkMultiDimensionInsertAtZeroDimension(b *testing.B) {
 	entries := generateRandomMultiDimensionalEntries(numItems)
 	rt.Add(entries...)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		rt.InsertAtDimension(0, 0, 1)
 	}
 }
@@ -405,9 +391,7 @@ func BenchmarkMultiDimensionInsertNegativeAtZeroDimension(b *testing.B) {
 	entries := generateRandomMultiDimensionalEntries(numItems)
 	rt.Add(entries...)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		rt.InsertAtDimension(0, 0, -1)
 	}
 }

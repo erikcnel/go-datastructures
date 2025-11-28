@@ -347,7 +347,7 @@ func TestPredecessorBetweenTwoKeys(t *testing.T) {
 		assert.Equal(t, e1, result)
 	}
 
-	for i := uint64(0); i < 10; i++ {
+	for i := range uint64(10) {
 		result := xft.Predecessor(i)
 		assert.Nil(t, result)
 	}
@@ -530,9 +530,7 @@ func BenchmarkSuccessor(b *testing.B) {
 		xft.Insert(newMockEntry(i))
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		xft.Successor(uint64(i))
 	}
 }
@@ -540,7 +538,7 @@ func BenchmarkSuccessor(b *testing.B) {
 func BenchmarkDelete(b *testing.B) {
 	xs := make([]*XFastTrie, 0, b.N)
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		x := New(uint8(0))
 		x.Insert(newMockEntry(0))
 		xs = append(xs, x)
@@ -548,15 +546,14 @@ func BenchmarkDelete(b *testing.B) {
 
 	// this is actually a pretty bad case for the x-fast
 	// trie as the entire branch will have to be walked.
-	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		xs[i].Delete(0)
 	}
 }
 
 func BenchmarkInsert(b *testing.B) {
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		xft := New(uint64(0))
 		e := newMockEntry(uint64(i))
 		xft.Insert(e)
@@ -572,9 +569,7 @@ func BenchmarkListInsert(b *testing.B) {
 		s = append(s, j)
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		s.Insert(int64(i))
 	}
 }
@@ -587,9 +582,7 @@ func BenchmarkListSearch(b *testing.B) {
 		s = append(s, j)
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		s.Search(int64(i))
 	}
 }

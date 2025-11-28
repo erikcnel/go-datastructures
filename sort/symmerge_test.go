@@ -31,7 +31,7 @@ func constructMockComparators(values ...int) Comparators {
 
 func constructOrderedMockComparators(upTo int) Comparators {
 	comparators := make(Comparators, 0, upTo)
-	for i := 0; i < upTo; i++ {
+	for i := range upTo {
 		comparators = append(comparators, mockComparator(i))
 	}
 
@@ -39,7 +39,7 @@ func constructOrderedMockComparators(upTo int) Comparators {
 }
 
 func reverseComparators(comparators Comparators) Comparators {
-	for i := 0; i < len(comparators); i++ {
+	for i := range comparators {
 		li := len(comparators) - i - 1
 		comparators[i], comparators[li] = comparators[li], comparators[i]
 	}

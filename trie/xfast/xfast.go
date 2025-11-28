@@ -90,7 +90,7 @@ type Entry interface {
 var masks = func() [64]uint64 { // we don't technically need the last mask, this is just to be consistent
 	masks := [64]uint64{}
 	mask := uint64(0)
-	for i := uint64(0); i < 64; i++ {
+	for i := range uint64(64) {
 		mask = mask | 1<<(63-i)
 		masks[i] = mask
 	}
@@ -104,7 +104,7 @@ var masks = func() [64]uint64 { // we don't technically need the last mask, this
 // changed after initialization.
 var positions = func() [64]uint64 {
 	positions := [64]uint64{}
-	for i := uint64(0); i < 64; i++ {
+	for i := range uint64(64) {
 		positions[i] = uint64(1 << (63 - i))
 	}
 	return positions
@@ -213,7 +213,7 @@ type XFastTrie struct {
 // here when ints would perform just as well, but the public methods
 // on the XFastTrie all expect uint64, so we expect a uint in the
 // constructor for consistency's sake.
-func (xft *XFastTrie) init(intType interface{}) {
+func (xft *XFastTrie) init(intType any) {
 	bits := uint8(0)
 	switch intType.(type) {
 	case uint8:
@@ -624,7 +624,7 @@ func (xft *XFastTrie) Get(key uint64) Entry {
 // a uint of some sort, ie, uint8, uint16, etc.  The size of the
 // universe will be 2^n-1 and will affect the speed of all operations.
 // IFC MUST be a uint type.
-func New(ifc interface{}) *XFastTrie {
+func New(ifc any) *XFastTrie {
 	xft := &XFastTrie{}
 	xft.init(ifc)
 	return xft

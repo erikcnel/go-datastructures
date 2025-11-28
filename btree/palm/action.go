@@ -168,9 +168,9 @@ func minUint64(choices ...uint64) uint64 {
 	return min
 }
 
-type interfaces []interface{}
+type interfaces []any
 
-func executeInterfacesInParallel(ifs interfaces, fn func(interface{})) {
+func executeInterfacesInParallel(ifs interfaces, fn func(any)) {
 	if len(ifs) == 0 {
 		return
 	}
@@ -204,7 +204,7 @@ func executeInterfacesInParallel(ifs interfaces, fn func(interface{})) {
 	wg.Wait()
 }
 
-func executeInterfacesInSerial(ifs interfaces, fn func(interface{})) {
+func executeInterfacesInSerial(ifs interfaces, fn func(any)) {
 	if len(ifs) == 0 {
 		return
 	}

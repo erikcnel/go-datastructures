@@ -31,11 +31,11 @@ import (
 // too full.
 type cacher struct {
 	lock      sync.Mutex
-	cache     map[string]*futures.Future
+	cache     map[string]*futures.Future[any]
 	persister Persister
 }
 
-func (c *cacher) asyncLoadNode(t *Tr, key ID, completer chan interface{}) {
+func (c *cacher) asyncLoadNode(t *Tr, key ID, completer chan any) {
 	n, err := c.loadNode(t, key)
 	if err != nil {
 		completer <- err
@@ -55,7 +55,7 @@ func (c *cacher) clear() {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	c.cache = make(map[string]*futures.Future, 10)
+	c.cache = make(map[string]*futures.Future[any], 10)
 }
 
 // deleteFromCache will remove the provided ID from the cache.  This
@@ -102,8 +102,8 @@ func (c *cacher) getNode(t *Tr, key ID, useCache bool) (*Node, error) {
 		return ifc.(*Node), nil
 	}
 
-	completer := make(chan interface{}, 1)
-	future = futures.New(completer, 30*time.Second)
+	completer := make(chan any, 1)
+	future = futures.New[any](completer, 30*time.Second)
 	c.cache[string(key)] = future
 	c.lock.Unlock()
 
@@ -128,6 +128,6 @@ func (c *cacher) getNode(t *Tr, key ID, useCache bool) (*Node, error) {
 func newCacher(persister Persister) *cacher {
 	return &cacher{
 		persister: persister,
-		cache:     make(map[string]*futures.Future, 10),
+		cache:     make(map[string]*futures.Future[any], 10),
 	}
 }

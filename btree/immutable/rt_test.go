@@ -74,7 +74,7 @@ func init() {
 
 type valueSortWrapper struct {
 	comparator Comparator
-	values     []interface{}
+	values     []any
 }
 
 func (v *valueSortWrapper) Len() int {
@@ -101,7 +101,7 @@ func reverse(items items) items {
 	return items
 }
 
-var comparator = func(item1, item2 interface{}) int {
+var comparator = func(item1, item2 any) int {
 	int1, int2 := item1.(int64), item2.(int64)
 	if int1 < int2 {
 		return -1
@@ -142,7 +142,7 @@ func (o orderedItems) copy() orderedItems {
 	return cp
 }
 
-func (o orderedItems) search(value interface{}) int {
+func (o orderedItems) search(value any) int {
 	return sort.Search(len(o), func(i int) bool {
 		return comparator(o[i].Value, value) >= 0
 	})
@@ -196,7 +196,7 @@ func (o orderedItems) toItems() items {
 	return cp
 }
 
-func (o orderedItems) query(start, stop interface{}) items {
+func (o orderedItems) query(start, stop any) items {
 	items := make(items, 0, len(o))
 
 	for i := o.search(start); i < len(o); i++ {
@@ -210,13 +210,13 @@ func (o orderedItems) query(start, stop interface{}) items {
 	return items
 }
 
-func generateRandomQuery() (interface{}, interface{}) {
+func generateRandomQuery() (any, any) {
 	start := int64(rand.Intn(int(maxValue)))
 	offset := int64(rand.Intn(100))
 	return start, start + offset
 }
 
-func newItem(value interface{}) *Item {
+func newItem(value any) *Item {
 	return &Item{
 		Value:   value,
 		Payload: newID(),
@@ -258,7 +258,7 @@ func generateRandomItem() *Item {
 // no duplicates.
 func generateRandomItems(num int) items {
 	items := make(items, 0, num)
-	mp := make(map[interface{}]struct{}, num)
+	mp := make(map[any]struct{}, num)
 	for len(items) < num {
 		c := generateRandomItem()
 		if _, ok := mp[c.Value]; ok {
@@ -275,7 +275,7 @@ func generateRandomItems(num int) items {
 // items are returned in sorted order.
 func generateLinearItems(num int) items {
 	items := make(items, 0, num)
-	for i := 0; i < num; i++ {
+	for i := range num {
 		c := newItem(int64(i))
 		items = append(items, c)
 	}
@@ -294,7 +294,7 @@ func toOrdered(items items) orderedItems {
 
 // the following 3 methods are in the _test file as they are only used
 // in a testing environment.
-func (t *Tr) toList(values ...interface{}) (items, error) {
+func (t *Tr) toList(values ...any) (items, error) {
 	items := make(items, 0, t.Count)
 	err := t.Apply(func(item *Item) {
 		items = append(items, item)
@@ -327,7 +327,7 @@ func (t *Tr) pprint(id ID) {
 	}
 }
 
-func (t *Tr) verify(id ID, tb testing.TB) (interface{}, interface{}) {
+func (t *Tr) verify(id ID, tb testing.TB) (any, any) {
 	n, err := t.contextOrCachedNode(id, true)
 	require.NoError(tb, err)
 
@@ -368,8 +368,8 @@ func (t *Tr) verify(id ID, tb testing.TB) (interface{}, interface{}) {
 	return n.firstValue(), n.lastValue()
 }
 
-func itemsToValues(items ...*Item) []interface{} {
-	values := make([]interface{}, 0, len(items))
+func itemsToValues(items ...*Item) []any {
+	values := make([]any, 0, len(items))
 	for _, item := range items {
 		values = append(values, item.Value)
 	}
@@ -833,7 +833,7 @@ func TestGenerativeAdds(t *testing.T) {
 	cfg := defaultConfig()
 	rt := New(cfg)
 	oc := make(orderedItems, 0)
-	for i := 0; i < number; i++ {
+	for range number {
 		num := int(rand.Int31n(100))
 		if num == 0 {
 			num++
@@ -891,7 +891,7 @@ func TestGenerativeDeletes(t *testing.T) {
 	mutable.(*Tr).verify(mutable.(*Tr).Root, t)
 	rt, err = mutable.Commit()
 	require.NoError(t, err)
-	for i := 0; i < number; i++ {
+	for range number {
 		mutable = rt.AsMutable()
 		index := rand.Intn(len(oc))
 		c := oc[index]
@@ -939,7 +939,7 @@ func TestGenerativeOperations(t *testing.T) {
 	rt, err = mutable.Commit()
 	require.NoError(t, err)
 
-	for i := 0; i < number; i++ {
+	for range number {
 		mutable = rt.AsMutable()
 		if rand.Float64() < .5 && len(oc) > 0 {
 			c := oc[rand.Intn(len(oc))]
@@ -983,9 +983,7 @@ func BenchmarkGetitems(b *testing.B) {
 	require.NoError(b, err)
 	id := rt.ID()
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		rt, err = Load(cfg.Persister, id, comparator)
 		require.NoError(b, err)
 		_, err = rt.(*Tr).toList(itemsToValues(items...)...)
@@ -997,8 +995,7 @@ func BenchmarkBulkAdd(b *testing.B) {
 	number := 1000000
 	items := generateLinearItems(number)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		tr := New(defaultConfig())
 		mutable := tr.AsMutable()
 		mutable.AddItems(items...)

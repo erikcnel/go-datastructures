@@ -27,7 +27,6 @@ BenchmarkBulkAddPoints-8	     500	   2589270 ns/op
 BenchmarkBulkUpdatePoints-8	    2000	   1212641 ns/op
 BenchmarkPointInsertion-8	  200000	      9135 ns/op
 BenchmarkQueryPoints-8	  	  500000	      3122 ns/op
-
 */
 package hilbert
 
@@ -61,28 +60,28 @@ type tree struct {
 	number          uint64
 	_               [8]uint64
 	ary, bufferSize uint64
-	actions         *queue.RingBuffer
-	cache           []interface{}
+	actions         *queue.RingBuffer[action]
+	cache           interfaces
 	_               [8]uint64
 	disposed        uint64
 	_               [8]uint64
 	running         uint64
 }
 
-func (tree *tree) checkAndRun(action action) {
+func (tree *tree) checkAndRun(act action) {
 	if tree.actions.Len() > 0 {
-		if action != nil {
-			tree.actions.Put(action)
+		if act != nil {
+			tree.actions.Put(act)
 		}
 		if atomic.CompareAndSwapUint64(&tree.running, 0, 1) {
-			var a interface{}
+			var a action
 			var err error
 			for tree.actions.Len() > 0 {
 				a, err = tree.actions.Get()
 				if err != nil {
 					return
 				}
-				tree.cache = append(tree.cache, a)
+				tree.cache = append(tree.cache, any(a))
 				if uint64(len(tree.cache)) >= tree.bufferSize {
 					break
 				}
@@ -90,24 +89,24 @@ func (tree *tree) checkAndRun(action action) {
 
 			go tree.operationRunner(tree.cache, true)
 		}
-	} else if action != nil {
+	} else if act != nil {
 		if atomic.CompareAndSwapUint64(&tree.running, 0, 1) {
-			switch action.operation() {
+			switch act.operation() {
 			case get:
-				ga := action.(*getAction)
+				ga := act.(*getAction)
 				result := tree.search(ga.lookup)
 				ga.result = result
-				action.complete()
+				act.complete()
 				tree.reset()
 			case add, remove:
-				if len(action.keys()) > multiThreadAt {
-					tree.operationRunner(interfaces{action}, true)
+				if len(act.keys()) > multiThreadAt {
+					tree.operationRunner(interfaces{act}, true)
 				} else {
-					tree.operationRunner(interfaces{action}, false)
+					tree.operationRunner(interfaces{act}, false)
 				}
 			}
 		} else {
-			tree.actions.Put(action)
+			tree.actions.Put(act)
 			tree.checkAndRun(nil)
 		}
 	}
@@ -116,10 +115,10 @@ func (tree *tree) checkAndRun(action action) {
 func (tree *tree) init(bufferSize, ary uint64) {
 	tree.bufferSize = bufferSize
 	tree.ary = ary
-	tree.cache = make([]interface{}, 0, bufferSize)
+	tree.cache = make(interfaces, 0, bufferSize)
 	tree.root = newNode(true, newKeys(ary), newNodes(ary))
 	tree.root.mbr = &rectangle{}
-	tree.actions = queue.NewRingBuffer(tree.bufferSize)
+	tree.actions = queue.NewRingBuffer[action](tree.bufferSize)
 }
 
 func (tree *tree) operationRunner(xns interfaces, threaded bool) {
@@ -190,14 +189,14 @@ func (tree *tree) reset() {
 	tree.checkAndRun(nil)
 }
 
-func (tree *tree) fetchKeysInParallel(xns []interface{}) {
+func (tree *tree) fetchKeysInParallel(xns []any) {
 	var forCache struct {
 		i      int64
 		buffer [8]uint64 // different cache lines
 		js     []int64
 	}
 
-	for j := 0; j < len(xns); j++ {
+	for range xns {
 		forCache.js = append(forCache.js, -1)
 	}
 	numCPU := runtime.NumCPU()
@@ -320,14 +319,14 @@ func (tree *tree) recursiveMutate(adds, deletes map[*node][]*keyBundle, setRoot,
 	nextLayerWrite := make(map[*node][]*keyBundle)
 	nextLayerDelete := make(map[*node][]*keyBundle)
 
-	var mutate func(interfaces, func(interface{}))
+	var mutate func(interfaces, func(any))
 	if inParallel {
 		mutate = executeInterfacesInParallel
 	} else {
 		mutate = executeInterfacesInSerial
 	}
 
-	mutate(ifs, func(ifc interface{}) {
+	mutate(ifs, func(ifc any) {
 		n := ifc.(*node)
 		adds := adds[n]
 		deletes := deletes[n]

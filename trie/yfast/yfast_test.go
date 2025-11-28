@@ -195,9 +195,7 @@ func BenchmarkInsert(b *testing.B) {
 	yfast := New(uint64(0))
 	entries := generateEntries(b.N)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		yfast.Insert(entries[i])
 	}
 }
@@ -210,9 +208,7 @@ func BenchmarkGet(b *testing.B) {
 	yfast := New(uint32(0))
 	yfast.Insert(entries...)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		yfast.Get(uint64(numItems / 2))
 	}
 }
@@ -222,9 +218,7 @@ func BenchmarkDelete(b *testing.B) {
 	yfast := New(uint64(0))
 	yfast.Insert(entries...)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		yfast.Delete(uint64(i))
 	}
 }
@@ -240,9 +234,7 @@ func BenchmarkSuccessor(b *testing.B) {
 	yfast := New(uint64(0))
 	yfast.Insert(entries...)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		yfast.Successor(uint64(i))
 	}
 }
@@ -258,9 +250,7 @@ func BenchmarkPredecessor(b *testing.B) {
 	yfast := New(uint64(0))
 	yfast.Insert(entries...)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		yfast.Predecessor(uint64(i))
 	}
 }
@@ -272,9 +262,7 @@ func BenchmarkIterator(b *testing.B) {
 	yfast := New(uint64(0))
 	yfast.Insert(entries...)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for iter := yfast.Iter(0); iter.Next(); {
 			iter.Value()
 		}

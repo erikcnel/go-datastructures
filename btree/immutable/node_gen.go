@@ -240,7 +240,7 @@ func (z *Node) UnmarshalMsg(bts []byte) (o []byte, err error) {
 			if cap(z.ChildValues) >= int(xsz) {
 				z.ChildValues = z.ChildValues[:xsz]
 			} else {
-				z.ChildValues = make([]interface{}, xsz)
+				z.ChildValues = make([]any, xsz)
 			}
 			for cmr := range z.ChildValues {
 				z.ChildValues[cmr], bts, err = msgp.ReadIntfBytes(bts)

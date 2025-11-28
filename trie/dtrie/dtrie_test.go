@@ -39,7 +39,7 @@ func TestDefaultHasher(t *testing.T) {
 	assert.NotEqual(t, defaultHasher("foo"), defaultHasher("bar"))
 }
 
-func collisionHash(key interface{}) uint32 {
+func collisionHash(key any) uint32 {
 	return uint32(0xffffffff) // for testing collisions
 }
 
@@ -48,9 +48,9 @@ func TestInsert(t *testing.T) {
 	insertTest(t, collisionHash, 1000)
 }
 
-func insertTest(t *testing.T, hashfunc func(interface{}) uint32, count int) *node {
+func insertTest(t *testing.T, hashfunc func(any) uint32, count int) *node {
 	n := emptyNode(0, 32)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		n = insert(n, &entry{hashfunc(i), i, i})
 	}
 	return n
@@ -61,9 +61,9 @@ func TestGet(t *testing.T) {
 	getTest(t, collisionHash, 1000)
 }
 
-func getTest(t *testing.T, hashfunc func(interface{}) uint32, count int) {
+func getTest(t *testing.T, hashfunc func(any) uint32, count int) {
 	n := insertTest(t, hashfunc, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		x := get(n, hashfunc(i), i)
 		assert.Equal(t, i, x.Value())
 	}
@@ -74,9 +74,9 @@ func TestRemove(t *testing.T) {
 	removeTest(t, collisionHash, 1000)
 }
 
-func removeTest(t *testing.T, hashfunc func(interface{}) uint32, count int) {
+func removeTest(t *testing.T, hashfunc func(any) uint32, count int) {
 	n := insertTest(t, hashfunc, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		n = remove(n, hashfunc(i), i)
 	}
 	for _, e := range n.entries {
@@ -91,9 +91,9 @@ func TestUpdate(t *testing.T) {
 	updateTest(t, collisionHash, 1000)
 }
 
-func updateTest(t *testing.T, hashfunc func(interface{}) uint32, count int) {
+func updateTest(t *testing.T, hashfunc func(any) uint32, count int) {
 	n := insertTest(t, hashfunc, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		n = insert(n, &entry{hashfunc(i), i, -i})
 	}
 }

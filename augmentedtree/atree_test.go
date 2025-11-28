@@ -116,7 +116,7 @@ func constructSingleDimensionTestTree(number int) (*tree, Intervals) {
 	tree := newTree(1)
 
 	ivs := make(Intervals, 0, number)
-	for i := 0; i < number; i++ {
+	for i := range number {
 		iv := constructSingleDimensionInterval(int64(i), int64(i)+10, uint64(i))
 		ivs = append(ivs, iv)
 	}
@@ -209,7 +209,7 @@ func TestAddRootLeftAndRight(t *testing.T) {
 func TestAddRebalanceInOrder(t *testing.T) {
 	it := newTree(1)
 
-	for i := int64(0); i < 10; i++ {
+	for i := range int64(10) {
 		iv := constructSingleDimensionInterval(i, i+1, uint64(i))
 		it.add(iv)
 	}
@@ -254,7 +254,7 @@ func TestAddLargeNumberOfItems(t *testing.T) {
 	numItems := int64(1000)
 	it := newTree(1)
 
-	for i := int64(0); i < numItems; i++ {
+	for i := range numItems {
 		iv := constructSingleDimensionInterval(i, i+1, uint64(i))
 		it.add(iv)
 	}
@@ -269,14 +269,12 @@ func BenchmarkAddItems(b *testing.B) {
 	numItems := int64(1000)
 	intervals := make(Intervals, 0, numItems)
 
-	for i := int64(0); i < numItems; i++ {
+	for i := range numItems {
 		iv := constructSingleDimensionInterval(i, i+1, uint64(i))
 		intervals = append(intervals, iv)
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		it := newTree(1)
 		it.Add(intervals...)
 	}
@@ -286,7 +284,7 @@ func BenchmarkQueryItems(b *testing.B) {
 	numItems := int64(1000)
 	intervals := make(Intervals, 0, numItems)
 
-	for i := int64(0); i < numItems; i++ {
+	for i := range numItems {
 		iv := constructSingleDimensionInterval(i, i+1, uint64(i))
 		intervals = append(intervals, iv)
 	}
@@ -294,8 +292,7 @@ func BenchmarkQueryItems(b *testing.B) {
 	it := newTree(1)
 	it.Add(intervals...)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		it.Query(constructSingleDimensionInterval(0, numItems, 0))
 	}
 }
@@ -448,7 +445,7 @@ func TestDeleteRebalanceInOrder(t *testing.T) {
 
 	var toDelete *mockInterval
 
-	for i := int64(0); i < 10; i++ {
+	for i := range int64(10) {
 		iv := constructSingleDimensionInterval(i, i+1, uint64(i))
 		it.add(iv)
 		if i == 5 {
@@ -518,21 +515,19 @@ func BenchmarkDeleteItems(b *testing.B) {
 	numItems := int64(1000)
 
 	intervals := make(Intervals, 0, numItems)
-	for i := int64(0); i < numItems; i++ {
+	for i := range numItems {
 		iv := constructSingleDimensionInterval(i, i+1, uint64(i))
 		intervals = append(intervals, iv)
 	}
 
 	trees := make([]*tree, 0, b.N)
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		it := newTree(1)
 		it.Add(intervals...)
 		trees = append(trees, it)
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		trees[i].Delete(intervals...)
 	}
 }
@@ -554,7 +549,7 @@ func TestAddDeleteDuplicatesRebalanceInOrder(t *testing.T) {
 
 	intervals := make(Intervals, 0, 10)
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		iv := constructSingleDimensionInterval(0, 10, uint64(i))
 		intervals = append(intervals, iv)
 	}

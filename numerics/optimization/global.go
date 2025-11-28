@@ -22,7 +22,6 @@ type vertexProbabilityBundle struct {
 // 1/((2*pi)^(1/2)*sigma)*(1-e^(-dmin^2/2*sigma^2))
 // where dmin = euclidean distance between this vertex and the best guess
 // and sigma = (3*(m^(1/n)))^-1
-//
 func calculateVVP(guess, vertex *nmVertex, sigma float64) float64 {
 	distance := -guess.euclideanDistance(vertex)
 	lhs := 1 / (math.Sqrt(2*math.Pi) * sigma)
@@ -35,7 +34,6 @@ func calculateVVP(guess, vertex *nmVertex, sigma float64) float64 {
 // increases.
 //
 // sigma = (3*(m^(1/n)))^-1
-//
 func calculateSigma(dimensions, guesses int) float64 {
 	return math.Pow(3*math.Pow(float64(guesses), 1/float64(dimensions)), -1)
 }
@@ -122,7 +120,7 @@ func (results *results) grab(num int) vertices {
 	// first, copy what you want to the list to return
 	// not returning a sub-slice as we're about to mutate
 	// the original slice
-	for i := 0; i < num; i++ {
+	for i := range num {
 		vs = append(vs, results.pbs[i].vertex)
 	}
 	// now we overwrite the vertices that we are taking

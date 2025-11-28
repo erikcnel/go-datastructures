@@ -316,9 +316,8 @@ func BenchmarkIteration(b *testing.B) {
 	tree.Insert(keys...)
 
 	searchKey := newMockKey(0)
-	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		iter := tree.Iter(searchKey)
 		iter.exhaust()
 	}
@@ -331,8 +330,7 @@ func BenchmarkInsert(b *testing.B) {
 	keys := constructMockKeys(numItems)
 	tree := newBTree(ary)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		tree.Insert(keys[i%numItems])
 	}
 }
@@ -341,9 +339,7 @@ func BenchmarkBulkAdd(b *testing.B) {
 	numItems := 10000
 	keys := constructRandomMockKeys(numItems)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		tree := newBTree(1024)
 		tree.Insert(keys...)
 	}
@@ -357,9 +353,7 @@ func BenchmarkGet(b *testing.B) {
 	tree := newBTree(ary)
 	tree.Insert(keys...)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		tree.Get(keys[i%numItems])
 	}
 }
@@ -367,15 +361,13 @@ func BenchmarkGet(b *testing.B) {
 func BenchmarkBulkAddToExisting(b *testing.B) {
 	numItems := 100000
 	keySet := make([]keys, 0, b.N)
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		keySet = append(keySet, constructRandomMockKeys(numItems))
 	}
 
 	tree := newBTree(1024)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		tree.Insert(keySet[i]...)
 	}
 }
@@ -383,14 +375,13 @@ func BenchmarkBulkAddToExisting(b *testing.B) {
 func BenchmarkReadAndWrites(b *testing.B) {
 	numItems := 1000
 	ks := make([]keys, 0, b.N)
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ks = append(ks, constructRandomMockKeys(numItems))
 	}
 
 	tree := newBTree(16)
-	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		tree.Insert(ks[i]...)
 		tree.Get(ks[i]...)
 	}
@@ -403,17 +394,16 @@ func BenchmarkSimultaneousReadsAndWrites(b *testing.B) {
 	chunks := chunkKeys(keys, int64(numRoutines))
 
 	trees := make([]*btree, 0, numItems)
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		trees = append(trees, newBTree(8))
 	}
 
 	var wg sync.WaitGroup
 	var lock sync.Mutex
-	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		wg.Add(numRoutines)
-		for j := 0; j < numRoutines; j++ {
+		for j := range numRoutines {
 			go func(i, j int) {
 				lock.Lock()
 				trees[i].Insert(chunks[j]...)

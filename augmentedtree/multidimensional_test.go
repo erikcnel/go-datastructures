@@ -113,7 +113,7 @@ func TestMultipleAddMultipleDimensions(t *testing.T) {
 func TestAddRebalanceInOrderMultiDimensions(t *testing.T) {
 	it := newTree(2)
 
-	for i := int64(0); i < 10; i++ {
+	for i := range int64(10) {
 		iv := constructMultiDimensionInterval(
 			uint64(i), &dimension{i, i + 1}, &dimension{i, i + 1},
 		)
@@ -176,7 +176,7 @@ func TestAddLargeNumbersMultiDimensions(t *testing.T) {
 	numItems := int64(1000)
 	it := newTree(2)
 
-	for i := int64(0); i < numItems; i++ {
+	for i := range numItems {
 		iv := constructMultiDimensionInterval(
 			uint64(i), &dimension{i, i + 1}, &dimension{i, i + 1},
 		)
@@ -197,7 +197,7 @@ func BenchmarkAddItemsMultiDimensions(b *testing.B) {
 	numItems := int64(b.N)
 	intervals := make(Intervals, 0, numItems)
 
-	for i := int64(0); i < numItems; i++ {
+	for i := range numItems {
 		iv := constructMultiDimensionInterval(
 			uint64(i), &dimension{i, i + 1}, &dimension{i, i + 1},
 		)
@@ -205,9 +205,8 @@ func BenchmarkAddItemsMultiDimensions(b *testing.B) {
 	}
 
 	it := newTree(2)
-	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		it.Add(intervals[int64(i)%numItems])
 	}
 }
@@ -216,7 +215,7 @@ func BenchmarkQueryItemsMultiDimensions(b *testing.B) {
 	numItems := int64(1000)
 	intervals := make(Intervals, 0, numItems)
 
-	for i := int64(0); i < numItems; i++ {
+	for i := range numItems {
 		iv := constructMultiDimensionInterval(
 			uint64(i), &dimension{i, i + 1}, &dimension{i, i + 1},
 		)
@@ -226,8 +225,7 @@ func BenchmarkQueryItemsMultiDimensions(b *testing.B) {
 	it := newTree(2)
 	it.Add(intervals...)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		it.Query(
 			constructMultiDimensionInterval(
 				0, &dimension{0, numItems}, &dimension{0, numItems},
@@ -303,7 +301,7 @@ func TestDeleteRebalanceInOrderMultiDimensions(t *testing.T) {
 
 	var toDelete *mockInterval
 
-	for i := int64(0); i < 10; i++ {
+	for i := range int64(10) {
 		iv := constructMultiDimensionInterval(
 			uint64(i), &dimension{i, i + 1}, &dimension{i, i + 1},
 		)
@@ -396,7 +394,7 @@ func BenchmarkDeleteItemsMultiDimensions(b *testing.B) {
 	numItems := int64(1000)
 	intervals := make(Intervals, 0, numItems)
 
-	for i := int64(0); i < numItems; i++ {
+	for i := range numItems {
 		iv := constructMultiDimensionInterval(
 			uint64(i), &dimension{i, i + 1}, &dimension{i, i + 1},
 		)
@@ -404,15 +402,13 @@ func BenchmarkDeleteItemsMultiDimensions(b *testing.B) {
 	}
 
 	trees := make([]*tree, 0, b.N)
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		it := newTree(2)
 		it.Add(intervals...)
 		trees = append(trees, it)
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		trees[i].Delete(intervals...)
 	}
 }
@@ -422,7 +418,7 @@ func TestAddDeleteDuplicatesRebalanceInOrderMultiDimensions(t *testing.T) {
 
 	intervals := make(Intervals, 0, 10)
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		iv := constructMultiDimensionInterval(
 			uint64(i), &dimension{0, 10}, &dimension{0, 10},
 		)

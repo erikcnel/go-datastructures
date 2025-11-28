@@ -19,7 +19,7 @@ package rangetree
 import "sync"
 
 var entriesPool = sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return make(Entries, 0, 10)
 	},
 }

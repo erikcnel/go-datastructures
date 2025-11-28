@@ -48,7 +48,7 @@ type YFastTrie struct {
 	bits  uint8
 }
 
-func (yfast *YFastTrie) init(intType interface{}) {
+func (yfast *YFastTrie) init(intType any) {
 	switch intType.(type) {
 	case uint8:
 		yfast.bits = 8
@@ -275,7 +275,7 @@ func (yfast *YFastTrie) Iter(key uint64) *Iterator {
 // Provided should be a uint type that specifies the number
 // of bits in the desired universe.  This will affect the time
 // complexity of all lookup and mutate operations.
-func New(ifc interface{}) *YFastTrie {
+func New(ifc any) *YFastTrie {
 	yfast := &YFastTrie{}
 	yfast.init(ifc)
 	return yfast

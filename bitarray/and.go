@@ -123,7 +123,7 @@ func andDenseWithDenseBitArray(dba, other *bitArray) BitArray {
 
 	ba := newBitArray(min * s)
 
-	for i := uint64(0); i < min; i++ {
+	for i := range min {
 		ba.blocks[i] = dba.blocks[i].and(other.blocks[i])
 	}
 

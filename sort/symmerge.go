@@ -69,7 +69,7 @@ func symBinarySearch(u Comparators, start, stop, total int) int {
 // indices.  Again, there is duplication here with swap, but
 // we are buying performance.
 func symSwap(u Comparators, start1, start2, end int) {
-	for i := 0; i < end; i++ {
+	for i := range end {
 		u[start1+i], u[start2+i] = u[start2+i], u[start1+i]
 	}
 }

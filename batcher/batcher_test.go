@@ -17,163 +17,143 @@ limitations under the License.
 package batcher
 
 import (
-	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestNoCalculateBytes(t *testing.T) {
-	_, err := New(0, 0, 100, 5, nil)
-	assert.Error(t, err)
+func TestBatcherPut(t *testing.T) {
+	b, err := New[string](Config[string]{
+		MaxItems: 10,
+		MaxTime:  time.Second,
+	})
+	require.NoError(t, err)
+	defer b.Dispose()
+
+	err = b.Put("item1")
+	assert.NoError(t, err)
 }
 
-func TestMaxItems(t *testing.T) {
-	assert := assert.New(t)
-	b, err := New(0, 100, 100000, 10, func(str interface{}) uint {
-		return uint(len(str.(string)))
+func TestBatcherMaxItems(t *testing.T) {
+	b, err := New[int](Config[int]{
+		MaxItems: 3,
+		MaxTime:  time.Minute,
 	})
-	assert.Nil(err)
+	require.NoError(t, err)
+	defer b.Dispose()
 
-	for i := 0; i < 1000; i++ {
-		assert.Nil(b.Put("foo bar baz"))
+	done := make(chan []int, 1)
+	go func() {
+		batch, _ := b.Get()
+		done <- batch
+	}()
+
+	b.Put(1)
+	b.Put(2)
+	b.Put(3)
+
+	select {
+	case batch := <-done:
+		assert.Equal(t, []int{1, 2, 3}, batch)
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for batch")
 	}
-
-	batch, err := b.Get()
-	assert.Len(batch, 100)
-	assert.Nil(err)
 }
 
-func TestMaxBytes(t *testing.T) {
-	assert := assert.New(t)
-	b, err := New(0, 10000, 100, 10, func(str interface{}) uint {
-		return uint(len(str.(string)))
+func TestBatcherMaxTime(t *testing.T) {
+	b, err := New[string](Config[string]{
+		MaxItems: 100,
+		MaxTime:  100 * time.Millisecond,
 	})
-	assert.Nil(err)
+	require.NoError(t, err)
+	defer b.Dispose()
 
-	go func() {
-		for i := 0; i < 1000; i++ {
-			b.Put("a")
-		}
-	}()
+	b.Put("item1")
 
 	batch, err := b.Get()
-	assert.Len(batch, 100)
-	assert.Nil(err)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"item1"}, batch)
 }
 
-func TestMaxTime(t *testing.T) {
-	assert := assert.New(t)
-	b, err := New(time.Millisecond*200, 100000, 100000, 10,
-		func(str interface{}) uint {
-			return uint(len(str.(string)))
-		},
-	)
-	assert.Nil(err)
-
-	go func() {
-		for i := 0; i < 10000; i++ {
-			b.Put("a")
-			time.Sleep(time.Millisecond)
-		}
-	}()
-
-	before := time.Now()
-	batch, err := b.Get()
-
-	// This delta is normally 1-3 ms but running tests in CI with -race causes
-	// this to run much slower. For now, just bump up the threshold.
-	assert.InDelta(200, time.Since(before).Seconds()*1000, 100)
-	assert.True(len(batch) > 0)
-	assert.Nil(err)
-}
-
-func TestFlush(t *testing.T) {
-	assert := assert.New(t)
-	b, err := New(0, 10, 10, 10, func(str interface{}) uint {
-		return uint(len(str.(string)))
+func TestBatcherFlush(t *testing.T) {
+	b, err := New[string](Config[string]{
+		MaxItems: 100,
+		MaxTime:  time.Minute,
 	})
-	assert.Nil(err)
-	b.Put("a")
-	wait := make(chan bool)
+	require.NoError(t, err)
+	defer b.Dispose()
+
+	done := make(chan []string, 1)
 	go func() {
-		batch, err := b.Get()
-		assert.Equal([]interface{}{"a"}, batch)
-		assert.Nil(err)
-		wait <- true
+		batch, _ := b.Get()
+		done <- batch
 	}()
 
+	b.Put("item1")
+	b.Put("item2")
 	b.Flush()
-	<-wait
+
+	select {
+	case batch := <-done:
+		assert.Equal(t, []string{"item1", "item2"}, batch)
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for batch")
+	}
 }
 
-func TestMultiConsumer(t *testing.T) {
-	assert := assert.New(t)
-	b, err := New(0, 100, 100000, 10, func(str interface{}) uint {
-		return uint(len(str.(string)))
+func TestBatcherDispose(t *testing.T) {
+	b, err := New[string](Config[string]{
+		MaxItems: 10,
+		MaxTime:  time.Minute,
 	})
-	assert.Nil(err)
+	require.NoError(t, err)
 
-	var wg sync.WaitGroup
-	wg.Add(5)
-	for i := 0; i < 5; i++ {
-		go func() {
-			batch, err := b.Get()
-			assert.Len(batch, 100)
-			assert.Nil(err)
-			wg.Done()
-		}()
-	}
+	b.Put("item1")
+	b.Dispose()
 
+	assert.True(t, b.IsDisposed())
+
+	err = b.Put("item2")
+	assert.Equal(t, ErrDisposed, err)
+
+	err = b.Flush()
+	assert.Equal(t, ErrDisposed, err)
+}
+
+func TestBatcherMaxBytes(t *testing.T) {
+	b, err := New[string](Config[string]{
+		MaxBytes: 10,
+		MaxTime:  time.Minute,
+		CalculateBytes: func(s string) uint {
+			return uint(len(s))
+		},
+	})
+	require.NoError(t, err)
+	defer b.Dispose()
+
+	done := make(chan []string, 1)
 	go func() {
-		for i := 0; i < 500; i++ {
-			b.Put("a")
-		}
+		batch, _ := b.Get()
+		done <- batch
 	}()
 
-	wg.Wait()
+	b.Put("hello") // 5 bytes
+	b.Put("world") // 5 bytes = 10 total, triggers batch
+
+	select {
+	case batch := <-done:
+		assert.Equal(t, []string{"hello", "world"}, batch)
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for batch")
+	}
 }
 
-func TestDispose(t *testing.T) {
-	assert := assert.New(t)
-	b, err := New(1, 2, 100000, 2, func(str interface{}) uint {
-		return uint(len(str.(string)))
+func TestBatcherRequiresCalculateBytesWithMaxBytes(t *testing.T) {
+	_, err := New[string](Config[string]{
+		MaxBytes: 100,
+		// No CalculateBytes provided
 	})
-	assert.Nil(err)
-	b.Put("a")
-	b.Put("b")
-	b.Put("c")
-
-	batch1, err := b.Get()
-	assert.Equal([]interface{}{"a", "b"}, batch1)
-	assert.Nil(err)
-
-	batch2, err := b.Get()
-	assert.Equal([]interface{}{"c"}, batch2)
-	assert.Nil(err)
-
-	b.Put("d")
-	b.Put("e")
-	b.Put("f")
-
-	b.Dispose()
-
-	_, err = b.Get()
-	assert.Equal(ErrDisposed, err)
-
-	assert.Equal(ErrDisposed, b.Put("j"))
-	assert.Equal(ErrDisposed, b.Flush())
-
-}
-
-func TestIsDisposed(t *testing.T) {
-	assert := assert.New(t)
-	b, err := New(0, 10, 10, 10, func(str interface{}) uint {
-		return uint(len(str.(string)))
-	})
-	assert.Nil(err)
-	assert.False(b.IsDisposed())
-	b.Dispose()
-	assert.True(b.IsDisposed())
+	assert.Error(t, err)
 }

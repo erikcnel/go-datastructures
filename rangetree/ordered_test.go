@@ -166,9 +166,7 @@ func BenchmarkPrepend(b *testing.B) {
 		ns.add(newNode(int64(i), constructMockEntry(uint64(i), int64(i)), false))
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		ns.add(newNode(int64(i), constructMockEntry(uint64(i), int64(i)), false))
 	}
 }

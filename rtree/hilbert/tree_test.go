@@ -67,7 +67,7 @@ func constructMockPoints(num int) rtree.Rectangles {
 
 func constructRandomMockPoints(num int) rtree.Rectangles {
 	rects := make(rtree.Rectangles, 0, num)
-	for i := 0; i < num; i++ {
+	for range num {
 		r := rand.Int31()
 		rects = append(rects, newMockRectangle(r, r, r, r))
 	}
@@ -400,9 +400,7 @@ func BenchmarkBulkAddPoints(b *testing.B) {
 	numItems := 1000
 	points := constructMockPoints(numItems)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		tree := newTree(8, 8)
 		tree.Insert(points...)
 	}
@@ -414,9 +412,7 @@ func BenchmarkBulkUpdatePoints(b *testing.B) {
 	tree := newTree(8, 8)
 	tree.Insert(points...)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		tree.Insert(points...)
 	}
 }
@@ -426,9 +422,7 @@ func BenchmarkPointInsertion(b *testing.B) {
 	points := constructMockPoints(numItems)
 	tree := newTree(8, 8)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		tree.Insert(points[i%numItems])
 	}
 }
@@ -465,9 +459,7 @@ func BenchmarkDelete(b *testing.B) {
 	tree := newTree(8, 8)
 	tree.Insert(points...)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		tree.Delete(points[i%numItems])
 	}
 }

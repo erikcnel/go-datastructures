@@ -44,7 +44,7 @@ var (
 // Additional description: https://en.wikipedia.org/wiki/Graph_(discrete_mathematics)#Simple_graph
 type SimpleGraph struct {
 	mutex         sync.RWMutex
-	adjacencyList map[interface{}]map[interface{}]struct{}
+	adjacencyList map[any]map[any]struct{}
 	v, e          int
 }
 
@@ -65,7 +65,7 @@ func (g *SimpleGraph) E() int {
 }
 
 // AddEdge will create an edge between vertices v and w
-func (g *SimpleGraph) AddEdge(v, w interface{}) error {
+func (g *SimpleGraph) AddEdge(v, w any) error {
 	g.mutex.Lock()
 	defer g.mutex.Unlock()
 
@@ -87,7 +87,7 @@ func (g *SimpleGraph) AddEdge(v, w interface{}) error {
 }
 
 // Adj returns the list of all vertices connected to v
-func (g *SimpleGraph) Adj(v interface{}) ([]interface{}, error) {
+func (g *SimpleGraph) Adj(v any) ([]any, error) {
 	g.mutex.RLock()
 	defer g.mutex.RUnlock()
 
@@ -96,7 +96,7 @@ func (g *SimpleGraph) Adj(v interface{}) ([]interface{}, error) {
 		return nil, ErrVertexNotFound
 	}
 
-	adj := make([]interface{}, deg)
+	adj := make([]any, deg)
 	i := 0
 	for key := range g.adjacencyList[v] {
 		adj[i] = key
@@ -106,7 +106,7 @@ func (g *SimpleGraph) Adj(v interface{}) ([]interface{}, error) {
 }
 
 // Degree returns the number of vertices connected to v
-func (g *SimpleGraph) Degree(v interface{}) (int, error) {
+func (g *SimpleGraph) Degree(v any) (int, error) {
 	g.mutex.RLock()
 	defer g.mutex.RUnlock()
 
@@ -117,10 +117,10 @@ func (g *SimpleGraph) Degree(v interface{}) (int, error) {
 	return len(val), nil
 }
 
-func (g *SimpleGraph) addVertex(v interface{}) {
+func (g *SimpleGraph) addVertex(v any) {
 	mm, ok := g.adjacencyList[v]
 	if !ok {
-		mm = make(map[interface{}]struct{})
+		mm = make(map[any]struct{})
 		g.adjacencyList[v] = mm
 		g.v++
 	}
@@ -129,7 +129,7 @@ func (g *SimpleGraph) addVertex(v interface{}) {
 // NewSimpleGraph creates and returns a SimpleGraph
 func NewSimpleGraph() *SimpleGraph {
 	return &SimpleGraph{
-		adjacencyList: make(map[interface{}]map[interface{}]struct{}),
+		adjacencyList: make(map[any]map[any]struct{}),
 		v:             0,
 		e:             0,
 	}

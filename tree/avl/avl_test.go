@@ -24,7 +24,7 @@ import (
 
 func generateMockEntries(num int) Entries {
 	entries := make(Entries, 0, num)
-	for i := 0; i < num; i++ {
+	for i := range num {
 		entries = append(entries, mockEntry(i))
 	}
 
@@ -325,9 +325,7 @@ func BenchmarkImmutableInsert(b *testing.B) {
 	entries := generateMockEntries(numItems)
 	sl, _ = sl.Insert(entries...)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		sl, _ = sl.Insert(entries[i%numItems])
 	}
 }
@@ -339,9 +337,7 @@ func BenchmarkImmutableGet(b *testing.B) {
 	entries := generateMockEntries(numItems)
 	sl, _ = sl.Insert(entries...)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		sl.Get(entries[i%numItems])
 	}
 }
@@ -352,9 +348,7 @@ func BenchmarkImmutableBulkInsert(b *testing.B) {
 
 	entries := generateMockEntries(numItems)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		sl.Insert(entries...)
 	}
 }
@@ -366,9 +360,7 @@ func BenchmarkImmutableDelete(b *testing.B) {
 	entries := generateMockEntries(numItems)
 	sl, _ = sl.Insert(entries...)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		sl, _ = sl.Delete(entries[i%numItems])
 	}
 }
@@ -380,9 +372,7 @@ func BenchmarkImmutableBulkDelete(b *testing.B) {
 	entries := generateMockEntries(numItems)
 	sl, _ = sl.Insert(entries...)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		sl.Delete(entries...)
 	}
 }

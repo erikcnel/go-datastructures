@@ -131,7 +131,7 @@ func orDenseWithDenseBitArray(dba *bitArray, other *bitArray) BitArray {
 
 	ba := newBitArray(max * s)
 
-	for i := uint64(0); i < max; i++ {
+	for i := range max {
 		if i == uint64(len(dba.blocks)) {
 			copy(ba.blocks[i:], other.blocks[i:])
 			break

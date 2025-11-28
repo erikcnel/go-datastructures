@@ -225,7 +225,7 @@ func (nodes orderedNodes) immutableInsert(insertDimension, dimension, maxDimensi
 		return cp
 	}
 
-	for i := 0; i < len(cp); i++ {
+	for i := range cp {
 		oldNode := nodes[i]
 		nn := newNode(oldNode.value, oldNode.entry, !lastDimension)
 		nn.orderedNodes = oldNode.orderedNodes.immutableInsert(

@@ -44,7 +44,7 @@ Guess:
 	for i < num {
 		sum := float64(0)
 		vars := make([]float64, 0, dimensions)
-		for j := 0; j < dimensions; j++ {
+		for range dimensions {
 			v := r.Float64() * 1000
 			// we do a separate random check here to determine
 			// sign so we don't end up with all high v's one sign
@@ -102,7 +102,7 @@ func findMidpoint(vertices ...*nmVertex) *nmVertex {
 	num := len(vertices) // this is what we divide by
 	vars := make([]float64, 0, num)
 
-	for i := 0; i < num; i++ {
+	for i := range num {
 		sum := float64(0)
 		for _, v := range vertices {
 			sum += v.vars[i]
@@ -350,7 +350,7 @@ func (nm *nelderMead) evaluateWithConstraints(vertices vertices, vertex *nmVerte
 		return vertex
 	}
 	best := vertices[0]
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		vertex = best.add((vertex.subtract(best).multiply(alpha)))
 		if vertex.good {
 			return vertex
@@ -464,10 +464,10 @@ func (nm *nelderMead) evaluate() {
 
 	// the outer loop controls how hard we try to find
 	// a global critical point
-	for i := 0; i < maxIterations; i++ {
+	for range maxIterations {
 		// the inner loop controls the degenerate case where
 		// we can't converge to a critical point
-		for j := 0; j < maxRuns; j++ {
+		for range maxRuns {
 			// TODO: optimize this to prevent duplicate evaluations.
 			vertices.evaluate(nm.config)
 			best := vertices[0]

@@ -25,7 +25,7 @@ import (
 
 func constructMockPayloads(num int) keys {
 	keys := make(keys, 0, num)
-	for i := 0; i < num; i++ {
+	for i := range num {
 		keys = append(keys, newMockKey(i))
 	}
 
@@ -35,7 +35,7 @@ func constructMockPayloads(num int) keys {
 func constructMockKeys(num int) keys {
 	keys := make(keys, 0, num)
 
-	for i := 0; i < num; i++ {
+	for i := range num {
 		keys = append(keys, newMockKey(i))
 	}
 
@@ -44,7 +44,7 @@ func constructMockKeys(num int) keys {
 
 func constructRandomMockKeys(num int) keys {
 	keys := make(keys, 0, num)
-	for i := 0; i < num; i++ {
+	for range num {
 		keys = append(keys, newMockKey(rand.Int()))
 	}
 
@@ -53,9 +53,9 @@ func constructRandomMockKeys(num int) keys {
 
 func constructMockNodes(num int) nodes {
 	nodes := make(nodes, 0, num)
-	for i := 0; i < num; i++ {
+	for i := range num {
 		keys := make(keys, 0, num)
-		for j := 0; j < num; j++ {
+		for j := range num {
 			keys = append(keys, newMockKey(j*i+j))
 		}
 

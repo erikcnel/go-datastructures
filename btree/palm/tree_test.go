@@ -89,7 +89,7 @@ func getConsoleLogger() *log.Logger {
 
 func generateRandomKeys(num int) common.Comparators {
 	keys := make(common.Comparators, 0, num)
-	for i := 0; i < num; i++ {
+	for range num {
 		m := rand.Int()
 		keys = append(keys, mockKey(m%50))
 	}
@@ -98,7 +98,7 @@ func generateRandomKeys(num int) common.Comparators {
 
 func generateKeys(num int) common.Comparators {
 	keys := make(common.Comparators, 0, num)
-	for i := 0; i < num; i++ {
+	for i := range num {
 		keys = append(keys, mockKey(i))
 	}
 
@@ -299,7 +299,7 @@ func TestInsertOverwrite(t *testing.T) {
 func TestSimultaneousReadsAndWrites(t *testing.T) {
 	numLoops := 3
 	keys := make([]common.Comparators, 0, numLoops)
-	for i := 0; i < numLoops; i++ {
+	for range numLoops {
 		keys = append(keys, generateRandomKeys(10))
 	}
 
@@ -307,7 +307,7 @@ func TestSimultaneousReadsAndWrites(t *testing.T) {
 	defer tree.Dispose()
 	var wg sync.WaitGroup
 	wg.Add(numLoops)
-	for i := 0; i < numLoops; i++ {
+	for i := range numLoops {
 		go func(i int) {
 			tree.Insert(keys[i]...)
 			tree.Get(keys[i]...)
@@ -317,7 +317,7 @@ func TestSimultaneousReadsAndWrites(t *testing.T) {
 
 	wg.Wait()
 
-	for i := 0; i < numLoops; i++ {
+	for i := range numLoops {
 		assert.Equal(t, keys[i], tree.Get(keys[i]...))
 	}
 	checkTree(t, tree)
@@ -433,14 +433,13 @@ func TestCrossNodeQuery(t *testing.T) {
 func BenchmarkReadAndWrites(b *testing.B) {
 	numItems := 1000
 	keys := make([]common.Comparators, 0, b.N)
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		keys = append(keys, generateRandomKeys(numItems))
 	}
 
 	tree := newTree(8, 8)
-	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		tree.Insert(keys[i]...)
 		tree.Get(keys[i]...)
 	}
@@ -453,16 +452,15 @@ func BenchmarkSimultaneousReadsAndWrites(b *testing.B) {
 	chunks := chunkKeys(keys, int64(numRoutines))
 
 	trees := make([]*ptree, 0, numItems)
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		trees = append(trees, newTree(8, 8))
 	}
 
 	var wg sync.WaitGroup
-	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		wg.Add(numRoutines)
-		for j := 0; j < numRoutines; j++ {
+		for j := range numRoutines {
 			go func(i, j int) {
 				trees[i].Insert(chunks[j]...)
 				trees[i].Get(chunks[j]...)
@@ -478,13 +476,11 @@ func BenchmarkBulkAdd(b *testing.B) {
 	numItems := 10000
 	keys := generateRandomKeys(numItems)
 	trees := make([]*ptree, 0, b.N)
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		trees = append(trees, newTree(8, 8))
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		trees[i].Insert(keys...)
 	}
 }
@@ -494,9 +490,7 @@ func BenchmarkAdd(b *testing.B) {
 	keys := generateRandomKeys(numItems)
 	tree := newTree(8, 8) // writes will be amortized over node splits
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		tree.Insert(keys[i%numItems])
 	}
 }
@@ -504,15 +498,13 @@ func BenchmarkAdd(b *testing.B) {
 func BenchmarkBulkAddToExisting(b *testing.B) {
 	numItems := 100000
 	keySet := make([]common.Comparators, 0, b.N)
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		keySet = append(keySet, generateRandomKeys(numItems))
 	}
 
 	tree := newTree(8, 8)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		tree.Insert(keySet[i]...)
 	}
 }
@@ -523,9 +515,7 @@ func BenchmarkGet(b *testing.B) {
 	tree := newTree(8, 8)
 	tree.Insert(keys...)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		tree.Get(keys[i%numItems])
 	}
 }
@@ -536,9 +526,7 @@ func BenchmarkBulkGet(b *testing.B) {
 	tree := newTree(8, 8)
 	tree.Insert(keys...)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		tree.Get(keys...)
 	}
 }
@@ -549,9 +537,7 @@ func BenchmarkDelete(b *testing.B) {
 	tree := newTree(8, 8)
 	tree.Insert(keys...)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		tree.Delete(keys[i%numItems])
 	}
 }
@@ -560,15 +546,13 @@ func BenchmarkBulkDelete(b *testing.B) {
 	numItems := 10000
 	keys := generateRandomKeys(numItems)
 	trees := make([]*ptree, 0, b.N)
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		tree := newTree(8, 8)
 		tree.Insert(keys...)
 		trees = append(trees, tree)
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		trees[i].Delete(keys...)
 	}
 }
@@ -579,9 +563,7 @@ func BenchmarkFindQuery(b *testing.B) {
 	tree := newTree(8, 8)
 	tree.Insert(keys...)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		tree.Query(mockKey(numItems/2), mockKey(numItems/2+1))
 	}
 }
@@ -592,9 +574,7 @@ func BenchmarkExecuteQuery(b *testing.B) {
 	tree := newTree(8, 8)
 	tree.Insert(keys...)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		tree.Query(mockKey(0), mockKey(numItems))
 	}
 }

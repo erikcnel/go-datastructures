@@ -205,14 +205,12 @@ func BenchmarkGetBit(b *testing.B) {
 
 	ba := newBitArray(numItems)
 
-	for i := uint64(0); i < numItems; i++ {
+	for i := range numItems {
 		ba.SetBit(i)
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		for j := uint64(0); j < numItems; j++ {
+	for b.Loop() {
+		for j := range numItems {
 			ba.GetBit(j)
 		}
 	}
@@ -251,7 +249,7 @@ func BenchmarkGetSetBits(b *testing.B) {
 	numItems := uint64(168000)
 
 	ba := newBitArray(numItems)
-	for i := uint64(0); i < numItems; i++ {
+	for i := range numItems {
 		if i%13 == 0 || i%5 == 0 {
 			require.NoError(b, ba.SetBit(i))
 		}
@@ -259,8 +257,7 @@ func BenchmarkGetSetBits(b *testing.B) {
 
 	buf := make([]uint64, 0, ba.Capacity())
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ba.GetSetBits(0, buf)
 	}
 }
@@ -291,9 +288,7 @@ func BenchmarkEquality(b *testing.B) {
 	ba := newBitArray(160000)
 	other := newBitArray(ba.Capacity())
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ba.Equals(other)
 	}
 }
@@ -332,9 +327,7 @@ func BenchmarkIntersects(b *testing.B) {
 	ba.SetBit(159999)
 	other.SetBit(159999)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ba.Intersects(other)
 	}
 }
@@ -358,9 +351,7 @@ func TestComplement(t *testing.T) {
 func BenchmarkComplement(b *testing.B) {
 	ba := newBitArray(160000)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ba.complement()
 	}
 }
@@ -512,14 +503,12 @@ func BenchmarkDenseIntersectsCompressed(b *testing.B) {
 	ba := newBitArray(numBits)
 	other := newSparseBitArray()
 
-	for i := uint64(0); i < numBits; i++ {
+	for i := range numBits {
 		ba.SetBit(i)
 		other.SetBit(i)
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ba.intersectsSparseBitArray(other)
 	}
 }
@@ -541,12 +530,11 @@ func BenchmarkBitArrayToNums(b *testing.B) {
 	numItems := uint64(1000)
 	ba := newBitArray(numItems)
 
-	for i := uint64(0); i < numItems; i++ {
+	for i := range numItems {
 		ba.SetBit(i)
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ba.ToNums()
 	}
 }

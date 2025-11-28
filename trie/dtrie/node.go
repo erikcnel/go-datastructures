@@ -40,9 +40,9 @@ type node struct {
 	level   uint8 // level starts at 0
 }
 
-func (n *node) KeyHash() uint32    { return 0 }
-func (n *node) Key() interface{}   { return nil }
-func (n *node) Value() interface{} { return nil }
+func (n *node) KeyHash() uint32 { return 0 }
+func (n *node) Key() any        { return nil }
+func (n *node) Value() any      { return nil }
 
 func (n *node) String() string {
 	return fmt.Sprint(n.entries)
@@ -52,9 +52,9 @@ type collisionNode struct {
 	entries []Entry
 }
 
-func (n *collisionNode) KeyHash() uint32    { return 0 }
-func (n *collisionNode) Key() interface{}   { return nil }
-func (n *collisionNode) Value() interface{} { return nil }
+func (n *collisionNode) KeyHash() uint32 { return 0 }
+func (n *collisionNode) Key() any        { return nil }
+func (n *collisionNode) Value() any      { return nil }
 
 func (n *collisionNode) String() string {
 	return fmt.Sprintf("<COLLISIONS %v>%v", len(n.entries), n.entries)
@@ -63,8 +63,8 @@ func (n *collisionNode) String() string {
 // Entry defines anything held within the data structure
 type Entry interface {
 	KeyHash() uint32
-	Key() interface{}
-	Value() interface{}
+	Key() any
+	Value() any
 }
 
 func emptyNode(level uint8, capacity int) *node {
@@ -125,7 +125,7 @@ func insert(n *node, entry Entry) *node {
 }
 
 // returns nil if not found
-func get(n *node, keyHash uint32, key interface{}) Entry {
+func get(n *node, keyHash uint32, key any) Entry {
 	index := uint(mask(keyHash, n.level))
 	if n.dataMap.GetBit(index) {
 		return n.entries[index]
@@ -147,7 +147,7 @@ func get(n *node, keyHash uint32, key interface{}) Entry {
 	return nil
 }
 
-func remove(n *node, keyHash uint32, key interface{}) *node {
+func remove(n *node, keyHash uint32, key any) *node {
 	index := uint(mask(keyHash, n.level))
 	newNode := n
 	if n.dataMap.GetBit(index) {
@@ -161,7 +161,7 @@ func remove(n *node, keyHash uint32, key interface{}) *node {
 		// compress if only 1 entry exists in sub-node
 		if subNode.nodeMap.PopCount() == 0 && subNode.dataMap.PopCount() == 1 {
 			var e Entry
-			for i := uint(0); i < 32; i++ {
+			for i := range uint(32) {
 				if subNode.dataMap.GetBit(i) {
 					e = subNode.entries[i]
 					break
@@ -213,11 +213,9 @@ func pushEntries(n *node, stop <-chan struct{}, out chan Entry) {
 			case n.dataMap.GetBit(index):
 				out <- e
 			case n.nodeMap.GetBit(index):
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
+				wg.Go(func() {
 					pushEntries(e.(*node), stop, out)
-				}()
+				})
 				wg.Wait()
 			case n.level == 6 && e != nil:
 				for _, ce := range n.entries[index].(*collisionNode).entries {

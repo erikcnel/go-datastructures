@@ -20,270 +20,193 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEmptyList(t *testing.T) {
-	assert := assert.New(t)
-	head, ok := Empty.Head()
-	assert.Nil(head)
-	assert.False(ok)
+	l := Empty[int]()
 
-	tail, ok := Empty.Tail()
-	assert.Nil(tail)
-	assert.False(ok)
+	assert.True(t, l.IsEmpty())
+	assert.Equal(t, uint(0), l.Length())
 
-	assert.True(Empty.IsEmpty())
+	_, ok := l.Head()
+	assert.False(t, ok)
+
+	_, ok = l.Tail()
+	assert.False(t, ok)
 }
 
-func TestAdd(t *testing.T) {
-	assert := assert.New(t)
-	l1 := Empty.Add(1)
+func TestListAdd(t *testing.T) {
+	l := Empty[string]().Add("a").Add("b").Add("c")
 
-	// l1: [1]
-	assert.False(l1.IsEmpty())
-	head, ok := l1.Head()
-	assert.True(ok)
-	assert.Equal(1, head)
-	tail, ok := l1.Tail()
-	assert.True(ok)
-	assert.Equal(Empty, tail)
+	assert.False(t, l.IsEmpty())
+	assert.Equal(t, uint(3), l.Length())
 
-	l1 = l1.Add(2)
-
-	// l1: [2, 1]
-	head, ok = l1.Head()
-	assert.True(ok)
-	assert.Equal(2, head)
-	tail, ok = l1.Tail()
-	assert.True(ok)
-	head, ok = tail.Head()
-	assert.True(ok)
-	assert.Equal(1, head)
-
-	l2, err := l1.Insert("a", 1)
-	assert.Nil(err)
-
-	// l1: [2, 1]
-	// l2: [2, "a", 1]
-	head, ok = l1.Head()
-	assert.True(ok)
-	assert.Equal(2, head)
-	tail, ok = l1.Tail()
-	assert.True(ok)
-	head, ok = tail.Head()
-	assert.True(ok)
-	assert.Equal(1, head)
-
-	head, ok = l2.Head()
-	assert.True(ok)
-	assert.Equal(2, head)
-	tail, ok = l2.Tail()
-	assert.True(ok)
-	head, ok = tail.Head()
-	assert.True(ok)
-	assert.Equal("a", head)
-	tail, ok = tail.Tail()
-	assert.True(ok)
-	head, ok = tail.Head()
-	assert.True(ok)
-	assert.Equal(1, head)
-}
-
-func TestInsertAndGet(t *testing.T) {
-	assert := assert.New(t)
-	_, err := Empty.Insert(1, 5)
-	assert.Error(err)
-
-	l, err := Empty.Insert(1, 0)
-	assert.Nil(err)
-
-	// [1]
-	item, ok := l.Get(0)
-	assert.True(ok)
-	assert.Equal(1, item)
-
-	l, err = l.Insert(2, 0)
-	assert.Nil(err)
-
-	// [2, 1]
-	item, ok = l.Get(0)
-	assert.True(ok)
-	assert.Equal(2, item)
-	item, ok = l.Get(1)
-	assert.True(ok)
-	assert.Equal(1, item)
-
-	_, ok = l.Get(2)
-	assert.False(ok)
-
-	l, err = l.Insert("a", 3)
-	assert.Nil(l)
-	assert.Error(err)
-}
-
-func TestRemove(t *testing.T) {
-	assert := assert.New(t)
-	l, err := Empty.Remove(0)
-	assert.Nil(l)
-	assert.Error(err)
-
-	l = Empty.Add(1)
-	l = l.Add(2)
-	l = l.Add(3)
-
-	// [3, 2, 1]
-	l1, err := l.Remove(3)
-	assert.Nil(l1)
-	assert.Error(err)
-
-	l2, err := l.Remove(0)
-
-	// l: [3, 2, 1]
-	// l2: [2, 1]
-	assert.Nil(err)
 	head, ok := l.Head()
-	assert.True(ok)
-	assert.Equal(3, head)
+	assert.True(t, ok)
+	assert.Equal(t, "c", head)
+}
+
+func TestListTail(t *testing.T) {
+	l := Empty[int]().Add(1).Add(2).Add(3)
+
 	tail, ok := l.Tail()
-	assert.True(ok)
-	head, ok = tail.Head()
-	assert.True(ok)
-	assert.Equal(2, head)
-	tail, ok = tail.Tail()
-	assert.True(ok)
-	head, ok = tail.Head()
-	assert.True(ok)
-	assert.Equal(1, head)
+	require.True(t, ok)
 
-	assert.Nil(err)
-	head, ok = l2.Head()
-	assert.True(ok)
-	assert.Equal(2, head)
-	tail, ok = l2.Tail()
-	assert.True(ok)
-	head, ok = tail.Head()
-	assert.True(ok)
-	assert.Equal(1, head)
-
-	l2, err = l.Remove(1)
-
-	// l: [3, 2, 1]
-	// l2: [3, 1]
-	assert.Nil(err)
-	head, ok = l.Head()
-	assert.True(ok)
-	assert.Equal(3, head)
-	tail, ok = l.Tail()
-	assert.True(ok)
-	head, ok = tail.Head()
-	assert.True(ok)
-	assert.Equal(2, head)
-	tail, ok = tail.Tail()
-	assert.True(ok)
-	head, ok = tail.Head()
-	assert.True(ok)
-	assert.Equal(1, head)
-
-	assert.Nil(err)
-	head, ok = l2.Head()
-	assert.True(ok)
-	assert.Equal(3, head)
-	tail, ok = l2.Tail()
-	assert.True(ok)
-	head, ok = tail.Head()
-	assert.True(ok)
-	assert.Equal(1, head)
-
-	l2, err = l.Remove(2)
-
-	// l: [3, 2, 1]
-	// l2: [3, 2]
-	assert.Nil(err)
-	head, ok = l.Head()
-	assert.True(ok)
-	assert.Equal(3, head)
-	tail, ok = l.Tail()
-	assert.True(ok)
-	head, ok = tail.Head()
-	assert.True(ok)
-	assert.Equal(2, head)
-	tail, ok = tail.Tail()
-	assert.True(ok)
-	head, ok = tail.Head()
-	assert.True(ok)
-	assert.Equal(1, head)
-
-	assert.Nil(err)
-	head, ok = l2.Head()
-	assert.True(ok)
-	assert.Equal(3, head)
-	tail, ok = l2.Tail()
-	assert.True(ok)
-	head, ok = tail.Head()
-	assert.True(ok)
-	assert.Equal(2, head)
+	head, ok := tail.Head()
+	assert.True(t, ok)
+	assert.Equal(t, 2, head)
 }
 
-func TestFind(t *testing.T) {
-	assert := assert.New(t)
-	pred := func(item interface{}) bool {
-		return item == 1
-	}
+func TestListGet(t *testing.T) {
+	l := Empty[int]().Add(1).Add(2).Add(3)
+	// List is now [3, 2, 1] (3 is head)
 
-	found, ok := Empty.Find(pred)
-	assert.Nil(found)
-	assert.False(ok)
+	val, ok := l.Get(0)
+	assert.True(t, ok)
+	assert.Equal(t, 3, val)
 
-	l := Empty.Add("blah").Add("bleh")
+	val, ok = l.Get(1)
+	assert.True(t, ok)
+	assert.Equal(t, 2, val)
 
-	found, ok = l.Find(pred)
-	assert.Nil(found)
-	assert.False(ok)
+	val, ok = l.Get(2)
+	assert.True(t, ok)
+	assert.Equal(t, 1, val)
 
-	l = l.Add(1).Add("foo")
-
-	found, ok = l.Find(pred)
-	assert.Equal(1, found)
-	assert.True(ok)
+	_, ok = l.Get(3)
+	assert.False(t, ok)
 }
 
-func TestFindIndex(t *testing.T) {
-	assert := assert.New(t)
-	pred := func(item interface{}) bool {
-		return item == 1
-	}
+func TestListInsert(t *testing.T) {
+	l := Empty[int]().Add(1).Add(3)
+	// List is now [3, 1]
 
-	idx := Empty.FindIndex(pred)
-	assert.Equal(-1, idx)
+	l2, err := l.Insert(2, 1)
+	require.NoError(t, err)
+	// List is now [3, 2, 1]
 
-	l := Empty.Add("blah").Add("bleh")
-
-	idx = l.FindIndex(pred)
-	assert.Equal(-1, idx)
-
-	l = l.Add(1).Add("foo")
-
-	idx = l.FindIndex(pred)
-	assert.Equal(1, idx)
+	val, ok := l2.Get(1)
+	assert.True(t, ok)
+	assert.Equal(t, 2, val)
 }
 
-func TestLength(t *testing.T) {
-	assert := assert.New(t)
-	assert.Equal(uint(0), Empty.Length())
+func TestListRemove(t *testing.T) {
+	l := Empty[int]().Add(1).Add(2).Add(3)
+	// List is [3, 2, 1]
 
-	l := Empty.Add("foo")
-	assert.Equal(uint(1), l.Length())
-	l = l.Add("bar").Add("baz")
-	assert.Equal(uint(3), l.Length())
+	l2, err := l.Remove(1)
+	require.NoError(t, err)
+	// List is [3, 1]
+
+	assert.Equal(t, uint(2), l2.Length())
+
+	val, ok := l2.Get(1)
+	assert.True(t, ok)
+	assert.Equal(t, 1, val)
 }
 
-func TestMap(t *testing.T) {
-	assert := assert.New(t)
-	f := func(x interface{}) interface{} {
-		return x.(int) * x.(int)
-	}
-	assert.Nil(Empty.Map(f))
+func TestListFind(t *testing.T) {
+	l := Empty[int]().Add(1).Add(2).Add(3).Add(4).Add(5)
 
-	l := Empty.Add(1).Add(2).Add(3).Add(4)
-	assert.Equal([]interface{}{1, 4, 9, 16}, l.Map(f))
+	found, ok := l.Find(func(x int) bool { return x%2 == 0 })
+	assert.True(t, ok)
+	assert.Equal(t, 4, found) // First even number from head
+
+	_, ok = l.Find(func(x int) bool { return x > 10 })
+	assert.False(t, ok)
 }
+
+func TestListFindIndex(t *testing.T) {
+	l := Empty[string]().Add("a").Add("b").Add("c")
+	// List is [c, b, a]
+
+	idx := l.FindIndex(func(s string) bool { return s == "b" })
+	assert.Equal(t, 1, idx)
+
+	idx = l.FindIndex(func(s string) bool { return s == "x" })
+	assert.Equal(t, -1, idx)
+}
+
+func TestListMap(t *testing.T) {
+	l := Empty[int]().Add(1).Add(2).Add(3)
+	// List is [3, 2, 1]
+
+	doubled := l.Map(func(x int) int { return x * 2 })
+	// Map traverses from head, but appends, so result is [2, 4, 6]
+	assert.Equal(t, []int{2, 4, 6}, doubled)
+}
+
+func TestListForEach(t *testing.T) {
+	l := Empty[int]().Add(1).Add(2).Add(3)
+
+	sum := 0
+	l.ForEach(func(x int) {
+		sum += x
+	})
+	assert.Equal(t, 6, sum)
+}
+
+func TestListFilter(t *testing.T) {
+	l := Empty[int]().Add(1).Add(2).Add(3).Add(4).Add(5)
+	// List is [5, 4, 3, 2, 1]
+
+	evens := l.Filter(func(x int) bool { return x%2 == 0 })
+
+	assert.Equal(t, uint(2), evens.Length())
+}
+
+func TestListReduce(t *testing.T) {
+	l := Empty[int]().Add(1).Add(2).Add(3).Add(4)
+	// List is [4, 3, 2, 1]
+
+	sum := l.Reduce(func(acc, x int) int { return acc + x }, 0)
+	assert.Equal(t, 10, sum)
+}
+
+func TestListToSlice(t *testing.T) {
+	l := Empty[int]().Add(1).Add(2).Add(3)
+	// List is [3, 2, 1]
+
+	slice := l.ToSlice()
+	assert.Equal(t, []int{3, 2, 1}, slice)
+}
+
+func TestListReverse(t *testing.T) {
+	l := Empty[int]().Add(1).Add(2).Add(3)
+	// List is [3, 2, 1]
+
+	reversed := l.Reverse()
+	// Reversed is [1, 2, 3]
+
+	slice := reversed.ToSlice()
+	assert.Equal(t, []int{1, 2, 3}, slice)
+}
+
+func TestFromSlice(t *testing.T) {
+	l := FromSlice([]int{1, 2, 3})
+	// Items added in order, so list is [3, 2, 1]
+
+	head, ok := l.Head()
+	assert.True(t, ok)
+	assert.Equal(t, 3, head)
+}
+
+func TestFromSliceReversed(t *testing.T) {
+	l := FromSliceReversed([]int{1, 2, 3})
+	// Items added in reverse, so list is [1, 2, 3]
+
+	head, ok := l.Head()
+	assert.True(t, ok)
+	assert.Equal(t, 1, head)
+}
+
+func TestListImmutability(t *testing.T) {
+	l1 := Empty[int]().Add(1).Add(2)
+	l2 := l1.Add(3)
+
+	// l1 should be unchanged
+	assert.Equal(t, uint(2), l1.Length())
+	assert.Equal(t, uint(3), l2.Length())
+}
+

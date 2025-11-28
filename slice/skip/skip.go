@@ -132,7 +132,7 @@ func insertNode(sl *SkipList, n *node, cmp common.Comparator, pos uint64, cache 
 	}
 
 	nn := newNode(cmp, nodeLevel)
-	for i := uint8(0); i < nodeLevel; i++ {
+	for i := range nodeLevel {
 		nn.forward[i] = cache[i].forward[i]
 		cache[i].forward[i] = nn
 		formerWidth := cache[i].widths[i]
@@ -201,7 +201,7 @@ type SkipList struct {
 // init will initialize this skiplist.  The parameter is expected
 // to be of some uint type which will set this skiplist's maximum
 // level.
-func (sl *SkipList) init(ifc interface{}) {
+func (sl *SkipList) init(ifc any) {
 	switch ifc.(type) {
 	case uint8:
 		sl.maxLevel = 8
@@ -474,7 +474,7 @@ func (sl *SkipList) SplitAt(index uint64) (*SkipList, *SkipList) {
 // the maximum possible level that will be created to ensure
 // a random and quick distribution of levels.  Parameter must
 // be a uint type.
-func New(ifc interface{}) *SkipList {
+func New(ifc any) *SkipList {
 	sl := &SkipList{}
 	sl.init(ifc)
 	return sl

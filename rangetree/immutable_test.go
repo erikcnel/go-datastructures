@@ -138,14 +138,12 @@ func BenchmarkImmutableMultiDimensionInserts(b *testing.B) {
 	numItems := int64(1000)
 
 	entries := make(Entries, 0, numItems)
-	for i := int64(0); i < numItems; i++ {
+	for i := range numItems {
 		e := constructMockEntry(uint64(i), i, i)
 		entries = append(entries, e)
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		tree := newImmutableRangeTree(2)
 		for _, e := range entries {
 			tree = tree.Add(e)
@@ -157,14 +155,12 @@ func BenchmarkImmutableMultiDimensionBulkInsert(b *testing.B) {
 	numItems := int64(100000)
 
 	entries := make(Entries, 0, numItems)
-	for i := int64(0); i < numItems; i++ {
+	for i := range numItems {
 		e := constructMockEntry(uint64(i), i, i)
 		entries = append(entries, e)
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		tree := newImmutableRangeTree(2)
 		tree.Add(entries...)
 	}
@@ -174,14 +170,12 @@ func BenchmarkMultiDimensionBulkInsert(b *testing.B) {
 	numItems := int64(100000)
 
 	entries := make(Entries, 0, numItems)
-	for i := int64(0); i < numItems; i++ {
+	for i := range numItems {
 		e := constructMockEntry(uint64(i), i, i)
 		entries = append(entries, e)
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		tree := newOrderedTree(2)
 		tree.Add(entries...)
 	}
@@ -329,7 +323,7 @@ func TestImmutableMultiDimensionBulkDeletes(t *testing.T) {
 func constructMultiDimensionalImmutableTree(number int64) (*immutableRangeTree, Entries) {
 	tree := newImmutableRangeTree(2)
 	entries := make(Entries, 0, number)
-	for i := int64(0); i < number; i++ {
+	for i := range number {
 		entries = append(entries, constructMockEntry(uint64(i), i, i))
 	}
 
@@ -529,9 +523,7 @@ func BenchmarkImmutableInsertFirstDimension(b *testing.B) {
 
 	tree, _ := constructMultiDimensionalImmutableTree(numItems)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		tree.InsertAtDimension(1, 0, 1)
 	}
 }
@@ -541,9 +533,7 @@ func BenchmarkImmutableInsertSecondDimension(b *testing.B) {
 
 	tree, _ := constructMultiDimensionalImmutableTree(numItems)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		tree.InsertAtDimension(2, 0, 1)
 	}
 }

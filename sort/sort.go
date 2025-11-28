@@ -68,7 +68,7 @@ func MultithreadedSortComparators(comparators Comparators) Comparators {
 
 func chunk(comparators Comparators, numParts int64) []Comparators {
 	parts := make([]Comparators, numParts)
-	for i := int64(0); i < numParts; i++ {
+	for i := range numParts {
 		parts[i] = comparators[i*int64(len(comparators))/numParts : (i+1)*int64(len(comparators))/numParts]
 	}
 	return parts

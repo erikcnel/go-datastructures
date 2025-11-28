@@ -119,7 +119,7 @@ func (t *Tr) determinePaths(keys Keys) (map[string][]*nodeBundle, error) {
 	chunks := splitKeys(keys, runtime.NumCPU())
 	var wg sync.WaitGroup
 	wg.Add(len(chunks))
-	chunkPaths := make([]map[interface{}]*nodeBundle, len(chunks))
+	chunkPaths := make([]map[any]*nodeBundle, len(chunks))
 	lerr := terr.New()
 
 	for i := range chunks {
@@ -129,7 +129,7 @@ func (t *Tr) determinePaths(keys Keys) (map[string][]*nodeBundle, error) {
 			if len(keys) == 0 {
 				return
 			}
-			mp := make(map[interface{}]*nodeBundle, len(keys))
+			mp := make(map[any]*nodeBundle, len(keys))
 			for _, key := range keys {
 				path, err := t.iterativeFind(
 					key.Value, t.Root,
@@ -162,7 +162,7 @@ func (t *Tr) determinePaths(keys Keys) (map[string][]*nodeBundle, error) {
 }
 
 func insertByMerge(comparator Comparator, n *Node, bundles []*nodeBundle) (Keys, error) {
-	positions := make(map[interface{}]int, len(n.ChildValues))
+	positions := make(map[any]int, len(n.ChildValues))
 	overwrittens := make(Keys, 0, 10)
 
 	for i, value := range n.ChildValues {

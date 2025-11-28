@@ -47,7 +47,7 @@ type Tree interface {
 	// Apply takes a range and applies the provided function to every value
 	// in that range in order.  If a key could not be found, it is
 	// skipped.
-	Apply(fn func(item *Item), keys ...interface{}) error
+	Apply(fn func(item *Item), keys ...any) error
 	// ID returns the identifier for this tree.
 	ID() ID
 	// Len returns the number of items in the tree.
@@ -81,13 +81,13 @@ type MutableTree interface {
 	AddItems(items ...*Item) ([]*Item, error)
 	// DeleteItems removes all provided keys and returns them.
 	// An error is returned if the tree could not be traversed.
-	DeleteItems(keys ...interface{}) ([]*Item, error)
+	DeleteItems(keys ...any) ([]*Item, error)
 }
 
 // Comparator is used to determine ordering in the tree.  If item1
 // is less than item2, a negative number should be returned and
 // vice versa.  If equal, 0 should be returned.
-type Comparator func(item1, item2 interface{}) int
+type Comparator func(item1, item2 any) int
 
 // Payload is very basic and simply contains a key and a payload.
 type Payload struct {

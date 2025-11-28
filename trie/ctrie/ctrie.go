@@ -130,7 +130,7 @@ func newMainNode(x *sNode, xhc uint32, y *sNode, yhc uint32, lev uint, gen *gene
 		}
 		return &mainNode{cNode: &cNode{bmp, []branch{y, x}, gen}}
 	}
-	l := list.Empty.Add(x).Add(y)
+	l := list.Empty[any]().Add(x).Add(y)
 	return &mainNode{lNode: &lNode{l}}
 }
 
@@ -166,7 +166,7 @@ func (c *cNode) removed(pos, flag uint32, gen *generation) *cNode {
 	length := uint32(len(c.array))
 	bmp := c.bmp
 	array := make([]branch, length-1)
-	for i := uint32(0); i < pos; i++ {
+	for i := range pos {
 		array[i] = c.array[i]
 	}
 	for i, x := pos, uint32(0); x < length-pos-1; i++ {
@@ -206,7 +206,7 @@ func (t *tNode) untombed() *sNode {
 // lNode is a list node which is a leaf node used to handle hashcode
 // collisions by keeping such keys in a persistent list.
 type lNode struct {
-	list.PersistentList
+	list.PersistentList[any]
 }
 
 // entry returns the first S-node contained in the L-node.
@@ -217,8 +217,8 @@ func (l *lNode) entry() *sNode {
 
 // lookup returns the value at the given entry in the L-node or returns false
 // if it's not contained.
-func (l *lNode) lookup(e *Entry) (interface{}, bool) {
-	found, ok := l.Find(func(sn interface{}) bool {
+func (l *lNode) lookup(e *Entry) (any, bool) {
+	found, ok := l.Find(func(sn any) bool {
 		return bytes.Equal(e.Key, sn.(*sNode).Key)
 	})
 	if !ok {
@@ -234,7 +234,7 @@ func (l *lNode) inserted(entry *Entry) *lNode {
 
 // removed creates a new L-node with the entry removed.
 func (l *lNode) removed(e *Entry) *lNode {
-	idx := l.FindIndex(func(sn interface{}) bool {
+	idx := l.FindIndex(func(sn any) bool {
 		return bytes.Equal(e.Key, sn.(*sNode).Key)
 	})
 	if idx < 0 {
@@ -250,12 +250,12 @@ func (l *lNode) length() uint {
 }
 
 // branch is either an iNode or sNode.
-type branch interface{}
+type branch any
 
 // Entry contains a Ctrie key-value pair.
 type Entry struct {
 	Key   []byte
-	Value interface{}
+	Value any
 	hash  uint32
 }
 
@@ -284,7 +284,7 @@ func newCtrie(root *iNode, hashFactory HashFactory, readOnly bool) *Ctrie {
 
 // Insert adds the key-value pair to the Ctrie, replacing the existing value if
 // the key already exists.
-func (c *Ctrie) Insert(key []byte, value interface{}) {
+func (c *Ctrie) Insert(key []byte, value any) {
 	c.assertReadWrite()
 	c.insert(&Entry{
 		Key:   key,
@@ -295,13 +295,13 @@ func (c *Ctrie) Insert(key []byte, value interface{}) {
 
 // Lookup returns the value for the associated key or returns false if the key
 // doesn't exist.
-func (c *Ctrie) Lookup(key []byte) (interface{}, bool) {
+func (c *Ctrie) Lookup(key []byte) (any, bool) {
 	return c.lookup(&Entry{Key: key, hash: c.hash(key)})
 }
 
 // Remove deletes the value for the associated key, returning true if it was
 // removed or false if the entry doesn't exist.
-func (c *Ctrie) Remove(key []byte) (interface{}, bool) {
+func (c *Ctrie) Remove(key []byte) (any, bool) {
 	c.assertReadWrite()
 	return c.remove(&Entry{Key: key, hash: c.hash(key)})
 }
@@ -403,7 +403,7 @@ func (c *Ctrie) traverse(i *iNode, ch chan<- *Entry, cancel <-chan struct{}) err
 			}
 		}
 	case main.lNode != nil:
-		for _, e := range main.lNode.Map(func(sn interface{}) interface{} {
+		for _, e := range main.lNode.Map(func(sn any) any {
 			return sn.(*sNode).Entry
 		}) {
 			select {
@@ -435,7 +435,7 @@ func (c *Ctrie) insert(entry *Entry) {
 	}
 }
 
-func (c *Ctrie) lookup(entry *Entry) (interface{}, bool) {
+func (c *Ctrie) lookup(entry *Entry) (any, bool) {
 	root := c.readRoot()
 	result, exists, ok := c.ilookup(root, entry, 0, nil, root.gen)
 	for !ok {
@@ -444,7 +444,7 @@ func (c *Ctrie) lookup(entry *Entry) (interface{}, bool) {
 	return result, exists
 }
 
-func (c *Ctrie) remove(entry *Entry) (interface{}, bool) {
+func (c *Ctrie) remove(entry *Entry) (any, bool) {
 	root := c.readRoot()
 	result, exists, ok := c.iremove(root, entry, 0, nil, root.gen)
 	for !ok {
@@ -535,7 +535,7 @@ func (c *Ctrie) iinsert(i *iNode, entry *Entry, lev uint, parent *iNode, startGe
 // values are the entry value and whether or not the entry was contained in the
 // Ctrie. The last bool indicates if the operation succeeded. False means it
 // should be retried.
-func (c *Ctrie) ilookup(i *iNode, entry *Entry, lev uint, parent *iNode, startGen *generation) (interface{}, bool, bool) {
+func (c *Ctrie) ilookup(i *iNode, entry *Entry, lev uint, parent *iNode, startGen *generation) (any, bool, bool) {
 	// Linearization point.
 	main := gcasRead(i, c)
 	switch {
@@ -591,7 +591,7 @@ func (c *Ctrie) ilookup(i *iNode, entry *Entry, lev uint, parent *iNode, startGe
 // values are the entry value and whether or not the entry was contained in the
 // Ctrie. The last bool indicates if the operation succeeded. False means it
 // should be retried.
-func (c *Ctrie) iremove(i *iNode, entry *Entry, lev uint, parent *iNode, startGen *generation) (interface{}, bool, bool) {
+func (c *Ctrie) iremove(i *iNode, entry *Entry, lev uint, parent *iNode, startGen *generation) (any, bool, bool) {
 	// Linearization point.
 	main := gcasRead(i, c)
 	switch {
@@ -720,7 +720,7 @@ func clean(i *iNode, lev uint, ctrie *Ctrie) bool {
 	return true
 }
 
-func cleanReadOnly(tn *tNode, lev uint, p *iNode, ctrie *Ctrie, entry *Entry) (val interface{}, exists bool, ok bool) {
+func cleanReadOnly(tn *tNode, lev uint, p *iNode, ctrie *Ctrie, entry *Entry) (val any, exists bool, ok bool) {
 	if !ctrie.readOnly {
 		clean(p, lev-5, ctrie)
 		return nil, false, false

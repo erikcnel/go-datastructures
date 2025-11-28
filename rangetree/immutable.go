@@ -26,7 +26,7 @@ type immutableRangeTree struct {
 
 func newCache(dimensions uint64) []slice.Int64Slice {
 	cache := make([]slice.Int64Slice, 0, dimensions-1)
-	for i := uint64(0); i < dimensions; i++ {
+	for range dimensions {
 		cache = append(cache, slice.Int64Slice{})
 	}
 	return cache

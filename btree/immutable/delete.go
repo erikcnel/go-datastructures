@@ -18,7 +18,7 @@ package btree
 
 import "bytes"
 
-func (t *Tr) DeleteItems(values ...interface{}) ([]*Item, error) {
+func (t *Tr) DeleteItems(values ...any) ([]*Item, error) {
 	if len(values) == 0 {
 		return nil, nil
 	}
@@ -143,10 +143,7 @@ func (t *Tr) delete(keys Keys) error {
 // the changes non-local.
 // TODO: come up with a good way to parallelize this.
 func (t *Tr) walkupDelete(key *Key, node *Node, path *path, mapping map[string]*Node) error {
-	needsMerged := t.config.NodeWidth / 2
-	if needsMerged < 1 {
-		needsMerged = 1
-	}
+	needsMerged := max(t.config.NodeWidth/2, 1)
 	if node.lenValues() >= needsMerged {
 		return nil
 	}
@@ -211,7 +208,7 @@ func (t *Tr) walkupDelete(key *Key, node *Node, path *path, mapping map[string]*
 		}
 
 		var key *Key
-		var value interface{}
+		var value any
 		for node.lenValues() < needsMerged || sibling.lenValues() < needsMerged {
 			if prepend {
 				correctedValue, key := node.popValue(), node.popKey()

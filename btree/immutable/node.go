@@ -42,9 +42,9 @@ type ID []byte
 // this is how we reference items in nodes but consumers interface with
 // the tree using row/col/id.
 type Key struct {
-	UUID    ID          `msg:"u"`
-	Value   interface{} `msg:"v"`
-	Payload []byte      `msg:"p"`
+	UUID    ID     `msg:"u"`
+	Value   any    `msg:"v"`
+	Payload []byte `msg:"p"`
 }
 
 // ID returns the  unique identifier.
@@ -118,14 +118,14 @@ type Node struct {
 	IsLeaf bool `msg:"il"`
 	// ChildValues is only a temporary field that is used to house all
 	// values for serialization purposes.
-	ChildValues []interface{} `msg:"cv"`
+	ChildValues []any `msg:"cv"`
 	// ChildKeys is similar to child values but holds the IDs of children.
 	ChildKeys Keys `msg:"ck"`
 }
 
 // copy makes a deep copy of this node.  Required before any mutation.
 func (n *Node) copy() *Node {
-	cpValues := make([]interface{}, len(n.ChildValues))
+	cpValues := make([]any, len(n.ChildValues))
 	copy(cpValues, n.ChildValues)
 	cpKeys := make(Keys, len(n.ChildKeys))
 	copy(cpKeys, n.ChildKeys)
@@ -142,7 +142,7 @@ func (n *Node) copy() *Node {
 // provided value is greater than the highest value in this node and this
 // node is an internal node, this method returns the last ID and an index
 // equal to lenValues.
-func (n *Node) searchKey(comparator Comparator, value interface{}) (*Key, int) {
+func (n *Node) searchKey(comparator Comparator, value any) (*Key, int) {
 	i := n.search(comparator, value)
 
 	if n.IsLeaf && i == len(n.ChildValues) { // not found
@@ -247,13 +247,13 @@ func (n *Node) replaceKeyAt(key *Key, i int) {
 }
 
 // flatten returns a flattened list of values and IDs.  Useful for serialization.
-func (n *Node) flatten() ([]interface{}, Keys) {
+func (n *Node) flatten() ([]any, Keys) {
 	return n.ChildValues, n.ChildKeys
 }
 
 // iter returns an iterator that will iterate through the provided Morton
 // numbers as they exist in this node.
-func (n *Node) iter(comparator Comparator, start, stop interface{}) iterator {
+func (n *Node) iter(comparator Comparator, start, stop any) iterator {
 	pointer := n.search(comparator, start)
 	pointer--
 	return &sliceIterator{
@@ -264,7 +264,7 @@ func (n *Node) iter(comparator Comparator, start, stop interface{}) iterator {
 	}
 }
 
-func (n *Node) valueAt(i int) interface{} {
+func (n *Node) valueAt(i int) any {
 	return n.ChildValues[i]
 }
 
@@ -276,11 +276,11 @@ func (n *Node) needsSplit(max int) bool {
 	return n.lenValues() > max
 }
 
-func (n *Node) lastValue() interface{} {
+func (n *Node) lastValue() any {
 	return n.ChildValues[len(n.ChildValues)-1]
 }
 
-func (n *Node) firstValue() interface{} {
+func (n *Node) firstValue() any {
 	return n.ChildValues[0]
 }
 
@@ -289,7 +289,7 @@ func (n *Node) append(other *Node) {
 	n.ChildKeys = append(n.ChildKeys, other.ChildKeys...)
 }
 
-func (n *Node) replaceValueAt(i int, value interface{}) {
+func (n *Node) replaceValueAt(i int, value any) {
 	n.ChildValues[i] = value
 }
 
@@ -305,13 +305,13 @@ func (n *Node) deleteKeyAt(i int) {
 	n.ChildKeys = n.ChildKeys[:len(n.ChildKeys)-1]
 }
 
-func (n *Node) splitLeafAt(i int) (interface{}, *Node) {
+func (n *Node) splitLeafAt(i int) (any, *Node) {
 	left := newNode()
 	left.IsLeaf = n.IsLeaf
 	left.ID = newID()
 
 	value := n.ChildValues[i]
-	leftValues := make([]interface{}, i+1)
+	leftValues := make([]any, i+1)
 	copy(leftValues, n.ChildValues[:i+1])
 	n.ChildValues = n.ChildValues[i+1:]
 	leftKeys := make(Keys, i+1)
@@ -328,12 +328,12 @@ func (n *Node) splitLeafAt(i int) (interface{}, *Node) {
 // splitInternalAt is a method that generates a new set of children
 // for an internal node and returns the new set and the value that
 // separates them.
-func (n *Node) splitInternalAt(i int) (interface{}, *Node) {
+func (n *Node) splitInternalAt(i int) (any, *Node) {
 	left := newNode()
 	left.IsLeaf = n.IsLeaf
 	left.ID = newID()
 	value := n.ChildValues[i]
-	leftValues := make([]interface{}, i)
+	leftValues := make([]any, i)
 	copy(leftValues, n.ChildValues[:i])
 	n.ChildValues = n.ChildValues[i+1:]
 	leftKeys := make(Keys, i+1)
@@ -349,7 +349,7 @@ func (n *Node) splitInternalAt(i int) (interface{}, *Node) {
 
 // splitAt breaks this node into two parts and conceptually
 // returns the left part
-func (n *Node) splitAt(i int) (interface{}, *Node) {
+func (n *Node) splitAt(i int) (any, *Node) {
 	if n.IsLeaf {
 		return n.splitLeafAt(i)
 	}
@@ -369,7 +369,7 @@ func (n *Node) appendChild(key *Key) {
 	n.ChildKeys = append(n.ChildKeys, key)
 }
 
-func (n *Node) appendValue(value interface{}) {
+func (n *Node) appendValue(value any) {
 	n.ChildValues = append(n.ChildValues, value)
 }
 
@@ -379,7 +379,7 @@ func (n *Node) popFirstKey() *Key {
 	return key
 }
 
-func (n *Node) popFirstValue() interface{} {
+func (n *Node) popFirstValue() any {
 	value := n.ChildValues[0]
 	n.deleteValueAt(0)
 	return value
@@ -391,7 +391,7 @@ func (n *Node) popKey() *Key {
 	return key
 }
 
-func (n *Node) popValue() interface{} {
+func (n *Node) popValue() any {
 	value := n.ChildValues[len(n.ChildValues)-1]
 	n.deleteValueAt(len(n.ChildValues) - 1)
 	return value
@@ -403,13 +403,13 @@ func (n *Node) prependKey(key *Key) {
 	n.ChildKeys[0] = key
 }
 
-func (n *Node) prependValue(value interface{}) {
+func (n *Node) prependValue(value any) {
 	n.ChildValues = append(n.ChildValues, nil)
 	copy(n.ChildValues[1:], n.ChildValues)
 	n.ChildValues[0] = value
 }
 
-func (n *Node) search(comparator Comparator, value interface{}) int {
+func (n *Node) search(comparator Comparator, value any) int {
 	return sort.Search(len(n.ChildValues), func(i int) bool {
 		return comparator(n.ChildValues[i], value) >= 0
 	})
@@ -437,7 +437,7 @@ func newNode() *Node {
 }
 
 type sliceIterator struct {
-	stop       interface{}
+	stop       any
 	n          *Node
 	pointer    int
 	comparator Comparator
@@ -478,7 +478,7 @@ type nodeBundle struct {
 }
 
 type nodeSortWrapper struct {
-	values     []interface{}
+	values     []any
 	keys       Keys
 	comparator Comparator
 }
@@ -496,8 +496,8 @@ func (n *nodeSortWrapper) Less(i, j int) bool {
 	return n.comparator(n.values[i], n.values[j]) < 0
 }
 
-func splitValues(values []interface{}, numParts int) [][]interface{} {
-	parts := make([][]interface{}, numParts)
+func splitValues(values []any, numParts int) [][]any {
+	parts := make([][]any, numParts)
 	for i := int64(0); i < int64(numParts); i++ {
 		parts[i] = values[i*int64(len(values))/int64(numParts) : (i+1)*int64(len(values))/int64(numParts)]
 	}

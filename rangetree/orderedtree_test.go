@@ -29,7 +29,7 @@ func constructMultiDimensionalOrderedTree(number uint64) (
 	tree := newOrderedTree(2)
 
 	entries := make(Entries, 0, number)
-	for i := uint64(0); i < number; i++ {
+	for i := range number {
 		entries = append(entries, constructMockEntry(i, int64(i), int64(i)))
 	}
 
@@ -116,7 +116,7 @@ func TestOTAddLargeNumbersMultiDimension(t *testing.T) {
 	numItems := uint64(1000)
 	tree := newOrderedTree(2)
 
-	for i := uint64(0); i < numItems; i++ {
+	for i := range numItems {
 		tree.Add(constructMockEntry(i, int64(i), int64(i)))
 	}
 
@@ -166,9 +166,8 @@ func BenchmarkOTAddItemsMultiDimensions(b *testing.B) {
 	}
 
 	rt := newOrderedTree(2)
-	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		rt.Add(entries[i%numItems])
 	}
 }
@@ -177,7 +176,7 @@ func BenchmarkOTQueryItemsMultiDimensions(b *testing.B) {
 	numItems := uint64(1000)
 	entries := make(Entries, 0, numItems)
 
-	for i := uint64(0); i < numItems; i++ {
+	for i := range numItems {
 		entries = append(entries, constructMockEntry(i, int64(i), int64(i)))
 	}
 
@@ -188,9 +187,7 @@ func BenchmarkOTQueryItemsMultiDimensions(b *testing.B) {
 		dimension{0, int64(numItems)},
 	)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		tree.Query(iv)
 	}
 }
@@ -309,20 +306,18 @@ func BenchmarkOTDeleteItemsMultiDimensions(b *testing.B) {
 	numItems := uint64(1000)
 	entries := make(Entries, 0, numItems)
 
-	for i := uint64(0); i < numItems; i++ {
+	for i := range numItems {
 		entries = append(entries, constructMockEntry(i, int64(i), int64(i)))
 	}
 
 	trees := make([]*orderedTree, 0, b.N)
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		tree := newOrderedTree(2)
 		tree.Add(entries...)
 		trees = append(trees, tree)
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		trees[i].Delete(entries...)
 	}
 }
@@ -396,9 +391,7 @@ func BenchmarkApply(b *testing.B) {
 	)
 	fn := func(Entry) bool { return true }
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		tree.Apply(iv, fn)
 	}
 }
@@ -578,9 +571,7 @@ func BenchmarkInsertFirstDimension(b *testing.B) {
 
 	tree, _ := constructMultiDimensionalOrderedTree(numItems)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		tree.InsertAtDimension(1, 0, 1)
 	}
 }
@@ -590,9 +581,7 @@ func BenchmarkInsertSecondDimension(b *testing.B) {
 
 	tree, _ := constructMultiDimensionalOrderedTree(numItems)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		tree.InsertAtDimension(2, 0, 1)
 	}
 }
@@ -602,9 +591,7 @@ func BenchmarkDeleteFirstDimension(b *testing.B) {
 
 	tree, _ := constructMultiDimensionalOrderedTree(numItems)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		tree.InsertAtDimension(1, 0, -1)
 	}
 }
@@ -614,9 +601,7 @@ func BenchmarkDeleteSecondDimension(b *testing.B) {
 
 	tree, _ := constructMultiDimensionalOrderedTree(numItems)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		tree.InsertAtDimension(2, 0, -1)
 	}
 }
@@ -628,17 +613,16 @@ func BenchmarkGetMultiDimensions(b *testing.B) {
 	tree := newOrderedTree(2)
 	entries := make(Entries, 0, numItemsY*numItemsX)
 
-	for i := 0; i < numItemsX; i++ {
-		for j := 0; j < numItemsY; j++ {
+	for i := range numItemsX {
+		for j := range numItemsY {
 			e := constructMockEntry(uint64(j*numItemsY+i), int64(i), int64(j))
 			entries = append(entries, e)
 		}
 	}
 
 	tree.Add(entries...)
-	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		tree.Get(entries[i%len(entries)])
 	}
 }

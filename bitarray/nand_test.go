@@ -248,9 +248,7 @@ func BenchmarkNandSparseWithSparse(b *testing.B) {
 		}
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		nandSparseWithSparseBitArray(sba, other)
 	}
 }
@@ -268,9 +266,7 @@ func BenchmarkNandSparseWithDense(b *testing.B) {
 		}
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		nandSparseWithDenseBitArray(sba, other)
 	}
 }
@@ -288,9 +284,7 @@ func BenchmarkNandDenseWithSparse(b *testing.B) {
 		}
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		nandDenseWithSparseBitArray(ba, other)
 	}
 }
@@ -308,9 +302,7 @@ func BenchmarkNandDenseWithDense(b *testing.B) {
 		}
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		nandDenseWithDenseBitArray(dba, other)
 	}
 }

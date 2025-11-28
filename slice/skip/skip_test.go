@@ -36,7 +36,7 @@ func generateMockEntries(num int) common.Comparators {
 
 func generateRandomMockEntries(num int) common.Comparators {
 	entries := make(common.Comparators, 0, num)
-	for i := 0; i < num; i++ {
+	for range num {
 		entries = append(entries, newMockEntry(uint64(rand.Int())))
 	}
 
@@ -341,9 +341,7 @@ func BenchmarkInsert(b *testing.B) {
 
 	entries := generateMockEntries(numItems)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		sl.Insert(entries[i%numItems])
 	}
 }
@@ -355,9 +353,7 @@ func BenchmarkGet(b *testing.B) {
 	entries := generateMockEntries(numItems)
 	sl.Insert(entries...)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		sl.Get(entries[i%numItems])
 	}
 }
@@ -369,9 +365,7 @@ func BenchmarkDelete(b *testing.B) {
 	entries := generateMockEntries(numItems)
 	sl.Insert(entries...)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		sl.Delete(entries[i])
 	}
 }
@@ -387,9 +381,7 @@ func BenchmarkPrepend(b *testing.B) {
 
 	sl.Insert(entries...)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		sl.Insert(newMockEntry(uint64(i)))
 	}
 }
@@ -400,9 +392,7 @@ func BenchmarkByPosition(b *testing.B) {
 	entries := generateMockEntries(numItems)
 	sl.Insert(entries...)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		sl.ByPosition(uint64(i % numItems))
 	}
 }
@@ -412,9 +402,7 @@ func BenchmarkInsertAtPosition(b *testing.B) {
 	sl := New(uint64(0))
 	entries := generateRandomMockEntries(numItems)
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		sl.InsertAtPosition(0, entries[i%numItems])
 	}
 }

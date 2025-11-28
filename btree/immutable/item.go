@@ -17,7 +17,7 @@ limitations under the License.
 package btree
 
 type Item struct {
-	Value   interface{}
+	Value   any
 	Payload []byte
 }
 

@@ -23,12 +23,12 @@ import (
 	terr "github.com/Workiva/go-datastructures/threadsafe/err"
 )
 
-func (t *Tr) Apply(fn func(item *Item), keys ...interface{}) error {
+func (t *Tr) Apply(fn func(item *Item), keys ...any) error {
 	if t.Root == nil || len(keys) == 0 {
 		return nil
 	}
 
-	positions := make(map[interface{}]int, len(keys))
+	positions := make(map[any]int, len(keys))
 	for i, key := range keys {
 		positions[key] = i
 	}
@@ -39,7 +39,7 @@ func (t *Tr) Apply(fn func(item *Item), keys ...interface{}) error {
 	lerr := terr.New()
 	result := make(Keys, len(keys))
 
-	for i := 0; i < len(chunks); i++ {
+	for i := range chunks {
 		go func(i int) {
 			defer wg.Done()
 
@@ -89,7 +89,7 @@ func (t *Tr) Apply(fn func(item *Item), keys ...interface{}) error {
 // Due to the nature of the UB-Tree, we may get results in the node that
 // aren't in the provided range.  The returned list of keys is not necessarily
 // in the correct row-major order.
-func (t *Tr) filter(start, stop interface{}, n *Node, fn func(key *Key) bool) bool {
+func (t *Tr) filter(start, stop any, n *Node, fn func(key *Key) bool) bool {
 	for iter := n.iter(t.config.Comparator, start, stop); iter.next(); {
 		id, _ := iter.value()
 		if !fn(id) {
@@ -100,7 +100,7 @@ func (t *Tr) filter(start, stop interface{}, n *Node, fn func(key *Key) bool) bo
 	return true
 }
 
-func (t *Tr) iter(start, stop interface{}, fn func(*Key) bool) error {
+func (t *Tr) iter(start, stop any, fn func(*Key) bool) error {
 	if len(t.Root) == 0 {
 		return nil
 	}
@@ -135,7 +135,7 @@ func (t *Tr) iter(start, stop interface{}, fn func(*Key) bool) error {
 // iterativeFind searches for the node with the provided value.  This
 // is an iterative function and returns an error if there was a problem
 // with persistence.
-func (t *Tr) iterativeFind(value interface{}, id ID) (*path, error) {
+func (t *Tr) iterativeFind(value any, id ID) (*path, error) {
 	if len(id) == 0 { // can't find a matching node
 		return nil, nil
 	}
@@ -165,12 +165,12 @@ func (t *Tr) iterativeFind(value interface{}, id ID) (*path, error) {
 	return path, nil
 }
 
-func (t *Tr) iterativeFindWithoutPath(value interface{}, id ID) (*Node, interface{}, error) {
+func (t *Tr) iterativeFindWithoutPath(value any, id ID) (*Node, any, error) {
 	var n *Node
 	var err error
 	var i int
 	var key *Key
-	var highestValue interface{}
+	var highestValue any
 
 	for {
 		n, err = t.contextOrCachedNode(id, t.mutable)

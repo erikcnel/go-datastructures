@@ -26,7 +26,7 @@ func TestSparseBitArraySerialization(t *testing.T) {
 	numItems := uint64(1280)
 	input := newSparseBitArray()
 
-	for i := uint64(0); i < numItems; i++ {
+	for i := range numItems {
 		if i%3 == 0 {
 			input.SetBit(i)
 		}
@@ -50,7 +50,7 @@ func TestBitArraySerialization(t *testing.T) {
 	numItems := uint64(1280)
 	input := newBitArray(numItems)
 
-	for i := uint64(0); i < numItems; i++ {
+	for i := range numItems {
 		if i%3 == 0 {
 			input.SetBit(i)
 		}
@@ -76,7 +76,7 @@ func TestBitArrayMarshalUnmarshal(t *testing.T) {
 	numItems := uint64(1280)
 	input := newBitArray(numItems)
 
-	for i := uint64(0); i < numItems; i++ {
+	for i := range numItems {
 		if i%3 == 0 {
 			input.SetBit(i)
 		}
@@ -97,7 +97,7 @@ func TestSparseBitArrayMarshalUnmarshal(t *testing.T) {
 	numItems := uint64(1280)
 	input := newSparseBitArray()
 
-	for i := uint64(0); i < numItems; i++ {
+	for i := range numItems {
 		if i%3 == 0 {
 			input.SetBit(i)
 		}
@@ -118,7 +118,7 @@ func TestUnmarshalErrors(t *testing.T) {
 	numItems := uint64(1280)
 	input := newBitArray(numItems)
 
-	for i := uint64(0); i < numItems; i++ {
+	for i := range numItems {
 		if i%3 == 0 {
 			input.SetBit(i)
 		}

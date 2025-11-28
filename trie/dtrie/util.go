@@ -35,7 +35,7 @@ func mask(hash uint32, level uint8) uint32 {
 	return (hash >> (5 * level)) & 0x01f
 }
 
-func defaultHasher(value interface{}) uint32 {
+func defaultHasher(value any) uint32 {
 	switch v := value.(type) {
 	case uint8:
 		return uint32(v)
@@ -65,6 +65,6 @@ func defaultHasher(value interface{}) uint32 {
 		return uint32(v)
 	}
 	hasher := fnv.New32a()
-	hasher.Write([]byte(fmt.Sprintf("%#v", value)))
+	hasher.Write(fmt.Appendf(nil, "%#v", value))
 	return hasher.Sum32()
 }

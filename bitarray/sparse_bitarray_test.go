@@ -35,13 +35,11 @@ func BenchmarkGetCompressedBit(b *testing.B) {
 	numItems := 1000
 	ba := newSparseBitArray()
 
-	for i := 0; i < numItems; i++ {
+	for i := range numItems {
 		ba.SetBit(uint64(i))
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ba.GetBit(s)
 	}
 }
@@ -69,9 +67,8 @@ func BenchmarkSetCompressedBit(b *testing.B) {
 	numItems := 1000
 	ba := newSparseBitArray()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		for j := 0; j < numItems; j++ {
+	for b.Loop() {
+		for j := range numItems {
 			ba.SetBit(uint64(j))
 		}
 	}
@@ -108,7 +105,7 @@ func TestGetSetCompressedBits(t *testing.T) {
 
 func BenchmarkGetSetCompressedBits(b *testing.B) {
 	ba := newSparseBitArray()
-	for i := uint64(0); i < 168000; i++ {
+	for i := range uint64(168000) {
 		if i%13 == 0 || i%5 == 0 {
 			require.NoError(b, ba.SetBit(i))
 		}
@@ -116,8 +113,7 @@ func BenchmarkGetSetCompressedBits(b *testing.B) {
 
 	buf := make([]uint64, 0, ba.Capacity())
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ba.GetSetBits(0, buf)
 	}
 }
@@ -167,13 +163,11 @@ func TestClearCompressedBit(t *testing.T) {
 func BenchmarkClearCompressedBit(b *testing.B) {
 	numItems := 1000
 	ba := newSparseBitArray()
-	for i := 0; i < numItems; i++ {
+	for i := range numItems {
 		ba.SetBit(uint64(i))
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		ba.ClearBit(uint64(i))
 	}
 }
@@ -267,14 +261,12 @@ func BenchmarkCompressedIntersects(b *testing.B) {
 	ba := newSparseBitArray()
 	other := newSparseBitArray()
 
-	for i := uint64(0); i < numItems; i++ {
+	for i := range numItems {
 		ba.SetBit(i)
 		other.SetBit(i)
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ba.Intersects(other)
 	}
 }
@@ -328,14 +320,12 @@ func BenchmarkCompressedEquals(b *testing.B) {
 	cba := newSparseBitArray()
 	other := newSparseBitArray()
 
-	for i := uint64(0); i < numItems; i++ {
+	for i := range numItems {
 		cba.SetBit(i)
 		other.SetBit(i)
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		cba.Equals(other)
 	}
 }
@@ -367,12 +357,11 @@ func BenchmarkSparseBitArrayToNums(b *testing.B) {
 	numItems := uint64(1000)
 	sba := newSparseBitArray()
 
-	for i := uint64(0); i < numItems; i++ {
+	for i := range numItems {
 		sba.SetBit(i)
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		sba.ToNums()
 	}
 }

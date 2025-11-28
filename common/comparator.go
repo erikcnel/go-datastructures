@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package common provides shared interfaces and constraints for the v2 data structures.
+// Package common provides shared interfaces and constraints for data structures.
 package common
 
 import "cmp"
@@ -23,10 +23,10 @@ import "cmp"
 // This includes all integer, float, and string types.
 type Ordered = cmp.Ordered
 
-// Comparator is a generic interface for items that can be compared.
+// ComparableItem is a generic interface for items that can be compared.
 // Returns a positive number if this item is greater, 0 if equal,
 // negative number if less than other.
-type Comparator[T any] interface {
+type ComparableItem[T any] interface {
 	Compare(other T) int
 }
 

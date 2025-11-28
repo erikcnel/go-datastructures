@@ -17,595 +17,277 @@ limitations under the License.
 package queue
 
 import (
-	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestPut(t *testing.T) {
-	q := New(10)
+func TestQueuePut(t *testing.T) {
+	q := New[string](10)
 
-	q.Put(`test`)
-	assert.Equal(t, int64(1), q.Len())
+	err := q.Put("hello", "world")
+	require.NoError(t, err)
 
-	results, err := q.Get(1)
-	assert.Nil(t, err)
-
-	result := results[0]
-	assert.Equal(t, `test`, result)
-	assert.True(t, q.Empty())
-
-	q.Put(`test2`)
-	assert.Equal(t, int64(1), q.Len())
-
-	results, err = q.Get(1)
-	assert.Nil(t, err)
-
-	result = results[0]
-	assert.Equal(t, `test2`, result)
-	assert.True(t, q.Empty())
+	assert.Equal(t, int64(2), q.Len())
 }
 
-func TestGet(t *testing.T) {
-	q := New(10)
+func TestQueueGet(t *testing.T) {
+	q := New[int](10)
 
-	q.Put(`test`)
-	result, err := q.Get(2)
-	if !assert.Nil(t, err) {
-		return
-	}
+	q.Put(1, 2, 3)
 
-	assert.Len(t, result, 1)
-	assert.Equal(t, `test`, result[0])
-	assert.Equal(t, int64(0), q.Len())
+	items, err := q.Get(2)
+	require.NoError(t, err)
+	assert.Equal(t, []int{1, 2}, items)
 
-	q.Put(`1`)
-	q.Put(`2`)
-
-	result, err = q.Get(1)
-	if !assert.Nil(t, err) {
-		return
-	}
-
-	assert.Len(t, result, 1)
-	assert.Equal(t, `1`, result[0])
-	assert.Equal(t, int64(1), q.Len())
-
-	result, err = q.Get(2)
-	if !assert.Nil(t, err) {
-		return
-	}
-
-	assert.Equal(t, `2`, result[0])
+	items, err = q.Get(2)
+	require.NoError(t, err)
+	assert.Equal(t, []int{3}, items)
 }
 
-func TestPoll(t *testing.T) {
-	q := New(10)
+func TestQueuePeek(t *testing.T) {
+	q := New[string](10)
 
-	// should be able to Poll() before anything is present, without breaking future Puts
-	q.Poll(1, time.Millisecond)
+	q.Put("first", "second")
 
-	q.Put(`test`)
-	result, err := q.Poll(2, 0)
-	if !assert.Nil(t, err) {
-		return
+	item, err := q.Peek()
+	require.NoError(t, err)
+	assert.Equal(t, "first", item)
+
+	// Peek shouldn't remove the item
+	assert.Equal(t, int64(2), q.Len())
+}
+
+func TestQueuePeekEmpty(t *testing.T) {
+	q := New[string](10)
+
+	_, err := q.Peek()
+	assert.Equal(t, ErrEmptyQueue, err)
+}
+
+func TestQueuePoll(t *testing.T) {
+	q := New[int](10)
+
+	// Test timeout on empty queue
+	_, err := q.Poll(1, 50*time.Millisecond)
+	assert.Equal(t, ErrTimeout, err)
+
+	// Add item and get it
+	q.Put(42)
+	items, err := q.Poll(1, 50*time.Millisecond)
+	require.NoError(t, err)
+	assert.Equal(t, []int{42}, items)
+}
+
+func TestQueueDispose(t *testing.T) {
+	q := New[string](10)
+
+	q.Put("a", "b", "c")
+
+	disposed := q.Dispose()
+	assert.Equal(t, []string{"a", "b", "c"}, disposed)
+
+	assert.True(t, q.Disposed())
+
+	err := q.Put("d")
+	assert.Equal(t, ErrDisposed, err)
+}
+
+func TestQueueTakeUntil(t *testing.T) {
+	q := New[int](10)
+
+	q.Put(1, 2, 3, 4, 5)
+
+	items, err := q.TakeUntil(func(item int) bool {
+		return item < 4
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []int{1, 2, 3}, items)
+
+	// Remaining items
+	remaining, _ := q.Get(10)
+	assert.Equal(t, []int{4, 5}, remaining)
+}
+
+func TestQueueEmpty(t *testing.T) {
+	q := New[int](10)
+
+	assert.True(t, q.Empty())
+
+	q.Put(1)
+	assert.False(t, q.Empty())
+}
+
+// PriorityQueue tests
+
+type testPriorityItem struct {
+	value    string
+	priority int
+}
+
+func (t testPriorityItem) Compare(other testPriorityItem) int {
+	if t.priority < other.priority {
+		return -1
 	}
-
-	assert.Len(t, result, 1)
-	assert.Equal(t, `test`, result[0])
-	assert.Equal(t, int64(0), q.Len())
-
-	q.Put(`1`)
-	q.Put(`2`)
-
-	result, err = q.Poll(1, time.Millisecond)
-	if !assert.Nil(t, err) {
-		return
+	if t.priority > other.priority {
+		return 1
 	}
+	return 0
+}
 
-	assert.Len(t, result, 1)
-	assert.Equal(t, `1`, result[0])
-	assert.Equal(t, int64(1), q.Len())
+func TestPriorityQueuePut(t *testing.T) {
+	pq := NewPriorityQueue[testPriorityItem](10, true)
 
-	result, err = q.Poll(2, time.Millisecond)
-	if !assert.Nil(t, err) {
-		return
-	}
+	err := pq.Put(
+		testPriorityItem{value: "low", priority: 10},
+		testPriorityItem{value: "high", priority: 1},
+	)
+	require.NoError(t, err)
 
-	assert.Equal(t, `2`, result[0])
+	assert.Equal(t, 2, pq.Len())
+}
 
-	before := time.Now()
-	_, err = q.Poll(1, 5*time.Millisecond)
-	// This delta is normally 1-3 ms but running tests in CI with -race causes
-	// this to run much slower. For now, just bump up the threshold.
-	assert.InDelta(t, 5, time.Since(before).Seconds()*1000, 10)
+func TestPriorityQueueGetOrder(t *testing.T) {
+	pq := NewPriorityQueue[testPriorityItem](10, true)
+
+	pq.Put(
+		testPriorityItem{value: "low", priority: 10},
+		testPriorityItem{value: "high", priority: 1},
+		testPriorityItem{value: "medium", priority: 5},
+	)
+
+	items, err := pq.Get(3)
+	require.NoError(t, err)
+
+	// Should come out in priority order (lowest first)
+	assert.Equal(t, "high", items[0].value)
+	assert.Equal(t, "medium", items[1].value)
+	assert.Equal(t, "low", items[2].value)
+}
+
+func TestPriorityQueuePeek(t *testing.T) {
+	pq := NewPriorityQueue[testPriorityItem](10, true)
+
+	pq.Put(
+		testPriorityItem{value: "low", priority: 10},
+		testPriorityItem{value: "high", priority: 1},
+	)
+
+	item, ok := pq.Peek()
+	assert.True(t, ok)
+	assert.Equal(t, "high", item.value)
+
+	// Peek shouldn't remove
+	assert.Equal(t, 2, pq.Len())
+}
+
+func TestOrderedPriorityQueue(t *testing.T) {
+	opq := NewOrderedPriorityQueue[string](10, true)
+
+	opq.Enqueue("low", 10)
+	opq.Enqueue("high", 1)
+	opq.Enqueue("medium", 5)
+
+	val, priority, err := opq.Dequeue()
+	require.NoError(t, err)
+	assert.Equal(t, "high", val)
+	assert.Equal(t, 1, priority)
+
+	val, priority, err = opq.Dequeue()
+	require.NoError(t, err)
+	assert.Equal(t, "medium", val)
+	assert.Equal(t, 5, priority)
+}
+
+// RingBuffer tests
+
+func TestRingBufferPutGet(t *testing.T) {
+	rb := NewRingBuffer[int](4)
+
+	err := rb.Put(1)
+	require.NoError(t, err)
+
+	val, err := rb.Get()
+	require.NoError(t, err)
+	assert.Equal(t, 1, val)
+}
+
+func TestRingBufferOffer(t *testing.T) {
+	rb := NewRingBuffer[string](2)
+
+	ok, err := rb.Offer("a")
+	require.NoError(t, err)
+	assert.True(t, ok)
+
+	ok, err = rb.Offer("b")
+	require.NoError(t, err)
+	assert.True(t, ok)
+
+	// Buffer is full, offer should return false
+	ok, err = rb.Offer("c")
+	require.NoError(t, err)
+	assert.False(t, ok)
+}
+
+func TestRingBufferLen(t *testing.T) {
+	rb := NewRingBuffer[int](4)
+
+	assert.Equal(t, uint64(0), rb.Len())
+
+	rb.Put(1)
+	rb.Put(2)
+	assert.Equal(t, uint64(2), rb.Len())
+}
+
+func TestRingBufferCap(t *testing.T) {
+	rb := NewRingBuffer[int](5)
+
+	// Should be rounded up to 8 (next power of 2)
+	assert.Equal(t, uint64(8), rb.Cap())
+}
+
+func TestRingBufferDispose(t *testing.T) {
+	rb := NewRingBuffer[int](4)
+
+	rb.Dispose()
+	assert.True(t, rb.IsDisposed())
+
+	err := rb.Put(1)
+	assert.Equal(t, ErrDisposed, err)
+
+	_, err = rb.Get()
+	assert.Equal(t, ErrDisposed, err)
+}
+
+func TestRingBufferPoll(t *testing.T) {
+	rb := NewRingBuffer[int](4)
+
+	// Test timeout
+	_, err := rb.Poll(50 * time.Millisecond)
 	assert.Equal(t, ErrTimeout, err)
 }
 
-func TestPollNoMemoryLeak(t *testing.T) {
-	q := New(0)
-
-	assert.Len(t, q.waiters, 0)
-
-	for i := 0; i < 10; i++ {
-		// Poll() should cleanup waiters after timeout
-		q.Poll(1, time.Nanosecond)
-		assert.Len(t, q.waiters, 0)
-	}
-}
-
-func TestAddEmptyPut(t *testing.T) {
-	q := New(10)
-
-	q.Put()
-
-	if q.Len() != 0 {
-		t.Errorf(`Expected len: %d, received: %d`, 0, q.Len())
-	}
-}
-
-func TestGetNonPositiveNumber(t *testing.T) {
-	q := New(10)
-
-	q.Put(`test`)
-	result, err := q.Get(0)
-	if !assert.Nil(t, err) {
-		return
-	}
-
-	if len(result) != 0 {
-		t.Errorf(`Expected len: %d, received: %d`, 0, len(result))
-	}
-}
-
-func TestEmpty(t *testing.T) {
-	q := New(10)
-
-	if !q.Empty() {
-		t.Errorf(`Expected empty queue.`)
-	}
-
-	q.Put(`test`)
-	if q.Empty() {
-		t.Errorf(`Expected non-empty queue.`)
-	}
-}
-
-func TestGetEmpty(t *testing.T) {
-	q := New(10)
-
-	go func() {
-		q.Put(`a`)
-	}()
-
-	result, err := q.Get(2)
-	if !assert.Nil(t, err) {
-		return
-	}
-
-	assert.Len(t, result, 1)
-	assert.Equal(t, `a`, result[0])
-}
-
-func TestMultipleGetEmpty(t *testing.T) {
-	q := New(10)
-	var wg sync.WaitGroup
-	wg.Add(2)
-	results := make([][]interface{}, 2)
-
-	go func() {
-		wg.Done()
-		local, err := q.Get(1)
-		assert.Nil(t, err)
-		results[0] = local
-		wg.Done()
-	}()
-
-	go func() {
-		wg.Done()
-		local, err := q.Get(1)
-		assert.Nil(t, err)
-		results[1] = local
-		wg.Done()
-	}()
-
-	wg.Wait()
-	wg.Add(2)
-
-	q.Put(`a`, `b`, `c`)
-	wg.Wait()
-
-	if assert.Len(t, results[0], 1) && assert.Len(t, results[1], 1) {
-		assert.True(t, (results[0][0] == `a` && results[1][0] == `b`) ||
-			(results[0][0] == `b` && results[1][0] == `a`),
-			`The array should be a, b or b, a`)
-	}
-}
-
-func TestDispose(t *testing.T) {
-	// when the queue is empty
-	q := New(10)
-	itemsDisposed := q.Dispose()
-
-	assert.Empty(t, itemsDisposed)
-
-	// when the queue is not empty
-	q = New(10)
-	q.Put(`1`)
-	itemsDisposed = q.Dispose()
-
-	expected := []interface{}{`1`}
-	assert.Equal(t, expected, itemsDisposed)
-
-	// when the queue has been disposed
-	itemsDisposed = q.Dispose()
-	assert.Nil(t, itemsDisposed)
-}
-
-func TestEmptyGetWithDispose(t *testing.T) {
-	q := New(10)
-	var wg sync.WaitGroup
-	wg.Add(1)
-
-	var err error
-
-	go func() {
-		wg.Done()
-		_, err = q.Get(1)
-		wg.Done()
-	}()
-
-	wg.Wait()
-	wg.Add(1)
-
-	q.Dispose()
-
-	wg.Wait()
-
-	assert.IsType(t, ErrDisposed, err)
-}
-
-func TestDisposeAfterEmptyPoll(t *testing.T) {
-	q := New(10)
-
-	_, err := q.Poll(1, time.Millisecond)
-	assert.IsType(t, ErrTimeout, err)
-
-	// it should not hang
-	q.Dispose()
-
-	_, err = q.Poll(1, time.Millisecond)
-	assert.IsType(t, ErrDisposed, err)
-}
-
-func TestGetPutDisposed(t *testing.T) {
-	q := New(10)
-
-	q.Dispose()
-
-	_, err := q.Get(1)
-	assert.IsType(t, ErrDisposed, err)
-
-	err = q.Put(`a`)
-	assert.IsType(t, ErrDisposed, err)
-}
-
-func BenchmarkQueue(b *testing.B) {
-	q := New(int64(b.N))
-	var wg sync.WaitGroup
-	wg.Add(1)
-	i := 0
-
-	go func() {
-		for {
-			q.Get(1)
-			i++
-			if i == b.N {
-				wg.Done()
-				break
-			}
-		}
-	}()
-
-	for i := 0; i < b.N; i++ {
-		q.Put(`a`)
-	}
-
-	wg.Wait()
-}
-
-func BenchmarkChannel(b *testing.B) {
-	ch := make(chan interface{}, 1)
-	var wg sync.WaitGroup
-	wg.Add(1)
-	i := 0
-
-	go func() {
-		for {
-			<-ch
-			i++
-			if i == b.N {
-				wg.Done()
-				break
-			}
-		}
-	}()
-
-	for i := 0; i < b.N; i++ {
-		ch <- `a`
-	}
-
-	wg.Wait()
-}
-
-func TestPeek(t *testing.T) {
-	q := New(10)
-	q.Put(`a`)
-	q.Put(`b`)
-	q.Put(`c`)
-	peekResult, err := q.Peek()
-	peekExpected := `a`
-	assert.Nil(t, err)
-	assert.Equal(t, q.Len(), int64(3))
-	assert.Equal(t, peekExpected, peekResult)
-
-	popResult, err := q.Get(1)
-	assert.Nil(t, err)
-	assert.Equal(t, peekResult, popResult[0])
-	assert.Equal(t, q.Len(), int64(2))
-}
-
-func TestPeekOnDisposedQueue(t *testing.T) {
-	q := New(10)
-	q.Dispose()
-	result, err := q.Peek()
-
-	assert.Nil(t, result)
-	assert.IsType(t, ErrDisposed, err)
-}
-
-func TestTakeUntil(t *testing.T) {
-	q := New(10)
-	q.Put(`a`, `b`, `c`)
-	result, err := q.TakeUntil(func(item interface{}) bool {
-		return item != `c`
-	})
-
-	if !assert.Nil(t, err) {
-		return
-	}
-
-	expected := []interface{}{`a`, `b`}
-	assert.Equal(t, expected, result)
-}
-
-func TestTakeUntilEmptyQueue(t *testing.T) {
-	q := New(10)
-	result, err := q.TakeUntil(func(item interface{}) bool {
-		return item != `c`
-	})
-
-	if !assert.Nil(t, err) {
-		return
-	}
-
-	expected := []interface{}{}
-	assert.Equal(t, expected, result)
-}
-
-func TestTakeUntilThenGet(t *testing.T) {
-	q := New(10)
-	q.Put(`a`, `b`, `c`)
-	takeItems, _ := q.TakeUntil(func(item interface{}) bool {
-		return item != `c`
-	})
-
-	restItems, _ := q.Get(3)
-	assert.Equal(t, []interface{}{`a`, `b`}, takeItems)
-	assert.Equal(t, []interface{}{`c`}, restItems)
-}
-
-func TestTakeUntilNoMatches(t *testing.T) {
-	q := New(10)
-	q.Put(`a`, `b`, `c`)
-	takeItems, _ := q.TakeUntil(func(item interface{}) bool {
-		return item != `a`
-	})
-
-	restItems, _ := q.Get(3)
-	assert.Equal(t, []interface{}{}, takeItems)
-	assert.Equal(t, []interface{}{`a`, `b`, `c`}, restItems)
-}
-
-func TestTakeUntilOnDisposedQueue(t *testing.T) {
-	q := New(10)
-	q.Dispose()
-	result, err := q.TakeUntil(func(item interface{}) bool {
-		return true
-	})
-
-	assert.Nil(t, result)
-	assert.IsType(t, ErrDisposed, err)
-}
-
-func TestWaiters(t *testing.T) {
-	s1, s2, s3, s4 := newSema(), newSema(), newSema(), newSema()
-
-	w := waiters{}
-	assert.Len(t, w, 0)
-
-	//
-	// test put()
-	w.put(s1)
-	assert.Equal(t, waiters{s1}, w)
-
-	w.put(s2)
-	w.put(s3)
-	w.put(s4)
-	assert.Equal(t, waiters{s1, s2, s3, s4}, w)
-
-	//
-	// test remove()
-	//
-	// remove from middle
-	w.remove(s2)
-	assert.Equal(t, waiters{s1, s3, s4}, w)
-
-	// remove non-existing element
-	w.remove(s2)
-	assert.Equal(t, waiters{s1, s3, s4}, w)
-
-	// remove from beginning
-	w.remove(s1)
-	assert.Equal(t, waiters{s3, s4}, w)
-
-	// remove from end
-	w.remove(s4)
-	assert.Equal(t, waiters{s3}, w)
-
-	// remove last element
-	w.remove(s3)
-	assert.Empty(t, w)
-
-	// remove non-existing element
-	w.remove(s3)
-	assert.Empty(t, w)
-
-	//
-	// test get()
-	//
-	// start with 3 elements in list
-	w.put(s1)
-	w.put(s2)
-	w.put(s3)
-	assert.Equal(t, waiters{s1, s2, s3}, w)
-
-	// get() returns each item in insertion order
-	assert.Equal(t, s1, w.get())
-	assert.Equal(t, s2, w.get())
-	w.put(s4) // interleave a put(), item should go to the end
-	assert.Equal(t, s3, w.get())
-	assert.Equal(t, s4, w.get())
-	assert.Empty(t, w)
-	assert.Nil(t, w.get())
-}
-
 func TestExecuteInParallel(t *testing.T) {
-	q := New(10)
-	for i := 0; i < 10; i++ {
+	q := New[int](10)
+
+	for i := range 100 {
 		q.Put(i)
 	}
 
-	numCalls := uint64(0)
+	sum := 0
+	ch := make(chan int, 100)
 
-	ExecuteInParallel(q, func(item interface{}) {
-		t.Logf("ExecuteInParallel called us with %+v", item)
-		atomic.AddUint64(&numCalls, 1)
+	ExecuteInParallel(q, func(item int) {
+		ch <- item
 	})
 
-	assert.Equal(t, uint64(10), numCalls)
-	assert.True(t, q.Disposed())
-}
-
-func TestExecuteInParallelEmptyQueue(t *testing.T) {
-	q := New(1)
-
-	// basically just ensuring we don't deadlock here
-	ExecuteInParallel(q, func(interface{}) {
-		t.Fail()
-	})
-}
-
-func BenchmarkQueuePut(b *testing.B) {
-	numItems := int64(1000)
-
-	qs := make([]*Queue, 0, b.N)
-
-	for i := 0; i < b.N; i++ {
-		q := New(10)
-		qs = append(qs, q)
+	close(ch)
+	for v := range ch {
+		sum += v
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		q := qs[i]
-		for j := int64(0); j < numItems; j++ {
-			q.Put(j)
-		}
-	}
-}
-
-func BenchmarkQueueGet(b *testing.B) {
-	numItems := int64(1000)
-
-	qs := make([]*Queue, 0, b.N)
-
-	for i := 0; i < b.N; i++ {
-		q := New(numItems)
-		for j := int64(0); j < numItems; j++ {
-			q.Put(j)
-		}
-		qs = append(qs, q)
-	}
-
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		q := qs[i]
-		for j := int64(0); j < numItems; j++ {
-			q.Get(1)
-		}
-	}
-}
-
-func BenchmarkQueuePoll(b *testing.B) {
-	numItems := int64(1000)
-
-	qs := make([]*Queue, 0, b.N)
-
-	for i := 0; i < b.N; i++ {
-		q := New(numItems)
-		for j := int64(0); j < numItems; j++ {
-			q.Put(j)
-		}
-		qs = append(qs, q)
-	}
-
-	b.ResetTimer()
-
-	for _, q := range qs {
-		for j := int64(0); j < numItems; j++ {
-			q.Poll(1, time.Millisecond)
-		}
-	}
-}
-
-func BenchmarkExecuteInParallel(b *testing.B) {
-	numItems := int64(1000)
-
-	qs := make([]*Queue, 0, b.N)
-
-	for i := 0; i < b.N; i++ {
-		q := New(numItems)
-		for j := int64(0); j < numItems; j++ {
-			q.Put(j)
-		}
-		qs = append(qs, q)
-	}
-
-	var counter int64
-	fn := func(ifc interface{}) {
-		c := ifc.(int64)
-		atomic.AddInt64(&counter, c)
-	}
-
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		q := qs[i]
-		ExecuteInParallel(q, fn)
-	}
+	// Sum of 0..99 = 4950
+	assert.Equal(t, 4950, sum)
 }

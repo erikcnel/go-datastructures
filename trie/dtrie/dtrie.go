@@ -36,30 +36,30 @@ package dtrie
 // to provide efficient memory allocation.
 type Dtrie struct {
 	root   *node
-	hasher func(v interface{}) uint32
+	hasher func(v any) uint32
 }
 
 type entry struct {
 	hash  uint32
-	key   interface{}
-	value interface{}
+	key   any
+	value any
 }
 
 func (e *entry) KeyHash() uint32 {
 	return e.hash
 }
 
-func (e *entry) Key() interface{} {
+func (e *entry) Key() any {
 	return e.key
 }
 
-func (e *entry) Value() interface{} {
+func (e *entry) Value() any {
 	return e.value
 }
 
 // New creates an empty DTrie with the given hashing function.
 // If nil is passed in, the default hashing function will be used.
-func New(hasher func(v interface{}) uint32) *Dtrie {
+func New(hasher func(v any) uint32) *Dtrie {
 	if hasher == nil {
 		hasher = defaultHasher
 	}
@@ -79,24 +79,24 @@ func (d *Dtrie) Size() (size int) {
 
 // Get returns the value for the associated key or returns nil if the
 // key does not exist.
-func (d *Dtrie) Get(key interface{}) interface{} {
-    node := get(d.root, d.hasher(key), key)
-    if node != nil {
-        return node.Value()
-    }
+func (d *Dtrie) Get(key any) any {
+	node := get(d.root, d.hasher(key), key)
+	if node != nil {
+		return node.Value()
+	}
 	return nil
 }
 
 // Insert adds a key value pair to the Dtrie, replacing the existing value if
 // the key already exists and returns the resulting Dtrie.
-func (d *Dtrie) Insert(key, value interface{}) *Dtrie {
+func (d *Dtrie) Insert(key, value any) *Dtrie {
 	root := insert(d.root, &entry{d.hasher(key), key, value})
 	return &Dtrie{root, d.hasher}
 }
 
 // Remove deletes the value for the associated key if it exists and returns
 // the resulting Dtrie.
-func (d *Dtrie) Remove(key interface{}) *Dtrie {
+func (d *Dtrie) Remove(key any) *Dtrie {
 	root := remove(d.root, d.hasher(key), key)
 	return &Dtrie{root, d.hasher}
 }

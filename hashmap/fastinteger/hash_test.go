@@ -22,13 +22,12 @@ func BenchmarkHash(b *testing.B) {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	keys := make([]uint64, 0, numItems)
-	for i := 0; i < numItems; i++ {
+	for range numItems {
 		key := uint64(r.Int63())
 		keys = append(keys, key)
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for _, key := range keys {
 			hash(key)
 		}
@@ -40,13 +39,12 @@ func BenchmarkFnvHash(b *testing.B) {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	keys := make([]uint64, 0, numItems)
-	for i := 0; i < numItems; i++ {
+	for range numItems {
 		key := uint64(r.Int63())
 		keys = append(keys, key)
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for _, key := range keys {
 			hasher := fnv.New64()
 			binary.Write(hasher, binary.LittleEndian, key)

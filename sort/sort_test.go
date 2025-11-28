@@ -32,8 +32,7 @@ func BenchmarkMultiThreadedSort(b *testing.B) {
 	comparators := constructOrderedMockComparators(numCells)
 	comparators = reverseComparators(comparators)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		MultithreadedSortComparators(comparators)
 	}
 }

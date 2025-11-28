@@ -12,7 +12,7 @@ func generateKeys(num int) []uint64 {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	keys := make([]uint64, 0, num)
-	for i := 0; i < num; i++ {
+	for range num {
 		key := uint64(r.Int63())
 		keys = append(keys, key)
 	}
@@ -80,11 +80,11 @@ func TestRebuild(t *testing.T) {
 
 	hm := New(10)
 
-	for i := uint64(0); i < numItems; i++ {
+	for i := range numItems {
 		hm.Set(i, i)
 	}
 
-	for i := uint64(0); i < numItems; i++ {
+	for i := range numItems {
 		value, _ := hm.Get(i)
 		assert.Equal(t, i, value)
 	}
@@ -111,11 +111,11 @@ func TestDeleteAll(t *testing.T) {
 
 	hm := New(10)
 
-	for i := uint64(0); i < numItems; i++ {
+	for i := range numItems {
 		hm.Set(i, i)
 	}
 
-	for i := uint64(0); i < numItems; i++ {
+	for i := range numItems {
 		hm.Delete(i)
 		assert.False(t, hm.Exists(i))
 	}
@@ -143,9 +143,7 @@ func BenchmarkInsert(b *testing.B) {
 
 	keys := generateKeys(int(numItems))
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		hm := New(numItems * 2) // so we don't rebuild
 		for _, k := range keys {
 			hm.Set(k, k)
@@ -158,9 +156,7 @@ func BenchmarkGoMapInsert(b *testing.B) {
 
 	keys := generateKeys(int(numItems))
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		hm := make(map[uint64]uint64, numItems*2) // so we don't rebuild
 		for _, k := range keys {
 			hm[k] = k
@@ -177,9 +173,7 @@ func BenchmarkExists(b *testing.B) {
 		hm.Set(key, key)
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for _, key := range keys {
 			hm.Exists(key)
 		}
@@ -195,10 +189,8 @@ func BenchmarkGoMapExists(b *testing.B) {
 		hm[key] = key
 	}
 
-	b.ResetTimer()
-
 	var ok bool
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for _, key := range keys {
 			_, ok = hm[key] // or the compiler complains
 		}
@@ -213,19 +205,17 @@ func BenchmarkDelete(b *testing.B) {
 	numItems := uint64(1000)
 
 	hms := make([]*FastIntegerHashMap, 0, b.N)
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		hm := New(numItems * 2)
-		for j := uint64(0); j < numItems; j++ {
+		for j := range numItems {
 			hm.Set(j, j)
 		}
 		hms = append(hms, hm)
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		hm := hms[i]
-		for j := uint64(0); j < numItems; j++ {
+		for j := range numItems {
 			hm.Delete(j)
 		}
 	}
@@ -235,19 +225,17 @@ func BenchmarkGoDelete(b *testing.B) {
 	numItems := uint64(1000)
 
 	hms := make([]map[uint64]uint64, 0, b.N)
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		hm := make(map[uint64]uint64, numItems*2)
-		for j := uint64(0); j < numItems; j++ {
+		for j := range numItems {
 			hm[j] = j
 		}
 		hms = append(hms, hm)
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		hm := hms[i]
-		for j := uint64(0); j < numItems; j++ {
+		for j := range numItems {
 			delete(hm, j)
 		}
 	}
@@ -257,16 +245,14 @@ func BenchmarkInsertWithExpand(b *testing.B) {
 	numItems := uint64(1000)
 
 	hms := make([]*FastIntegerHashMap, 0, b.N)
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		hm := New(10)
 		hms = append(hms, hm)
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		hm := hms[i]
-		for j := uint64(0); j < numItems; j++ {
+		for j := range numItems {
 			hm.Set(j, j)
 		}
 	}
@@ -276,16 +262,14 @@ func BenchmarkGoInsertWithExpand(b *testing.B) {
 	numItems := uint64(1000)
 
 	hms := make([]map[uint64]uint64, 0, b.N)
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		hm := make(map[uint64]uint64, 10)
 		hms = append(hms, hm)
 	}
 
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		hm := hms[i]
-		for j := uint64(0); j < numItems; j++ {
+		for j := range numItems {
 			hm[j] = j
 		}
 	}

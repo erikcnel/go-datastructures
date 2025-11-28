@@ -72,7 +72,7 @@ func bundlesFromRects(rects ...rtree.Rectangle) []*hilbertBundle {
 // chunkRectangles takes a slice of rtree.Rectangle values and chunks it into `numParts` subslices.
 func chunkRectangles(slice rtree.Rectangles, numParts int64) []rtree.Rectangles {
 	parts := make([]rtree.Rectangles, numParts)
-	for i := int64(0); i < numParts; i++ {
+	for i := range numParts {
 		parts[i] = slice[i*int64(len(slice))/numParts : (i+1)*int64(len(slice))/numParts]
 	}
 	return parts
